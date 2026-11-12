@@ -6,24 +6,22 @@
 import argparse
 import json
 import re
-import sys
 import time
 import urllib.parse
-import urllib.request
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
 from pathlib import Path
 
+from big_tech import from_big_tech
+from net import get, iso_to_epoch, job, log
 from common import (
     INDUSTRIES, NAICS_INDUSTRY, PINNED_ROLES, ROLE_ORDER, classify_role, html_to_text, industry_from_name, industry_from_text,
-    looks_new_grad, normalize_company, split_locations, sponsorship_from_text, us_locations,
+    looks_new_grad, new_grad_title, normalize_company, required_years, split_locations, sponsorship_from_text, us_locations,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 OUT = ROOT / "site" / "data" / "jobs.json"
 SIMPLIFY_URL = "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json"
-HEADERS = {"User-Agent": "Mozilla/5.0 (fresh-grad-board job digest)"}
 # Applicant-tracking hosts: a link on one of these says nothing about the company's own site.
 ATS_HOSTS = (
     "myworkdayjobs", "greenhouse", "lever.co", "ashbyhq", "workable", "oraclecloud", "applytojob",
@@ -36,37 +34,6 @@ GENERIC_TAILS = {
     "TECHNOLOGIES", "TECHNOLOGY", "HOLDINGS", "GROUP", "SYSTEMS", "SOLUTIONS", "SOFTWARE",
     "INTERNATIONAL", "GLOBAL", "LABS", "AI", "BANK", "FINANCIAL", "HEALTH", "INDUSTRIES",
 }
-
-
-def log(*args):
-    print(*args, file=sys.stderr, flush=True)
-
-
-def get(url, as_json=True, timeout=25):
-    try:
-        req = urllib.request.Request(url, headers=HEADERS)
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
-            body = resp.read().decode("utf-8", errors="replace")
-        return json.loads(body) if as_json else body
-    except Exception as exc:  # one bad source must not sink the run
-        log(f"  ! {url[:90]}: {exc.__class__.__name__}: {exc}")
-        return None
-
-
-def iso_to_epoch(value):
-    if not value:
-        return None
-    try:
-        return int(datetime.fromisoformat(value.replace("Z", "+00:00")).timestamp())
-    except ValueError:
-        return None
-
-
-def job(company, title, url, locations, posted_at, source, text=None):
-    return {
-        "company": company.strip(), "title": " ".join(title.split()), "url": url,
-        "locations": locations, "posted_at": posted_at, "source": source, "text": text,
-    }
 
 
 # ---------------------------------------------------------------- sources
@@ -299,14 +266,15 @@ def main():
     since = now - args.hours * 3600
     lookups = Lookups()
 
-    raw = from_simplify(since) + from_boards(since)
+    raw = from_simplify(since) + from_boards(since) + from_big_tech(since)
     jobs = []
     for j in raw:
         j["locations"] = us_locations(j["locations"])
         j["role"] = classify_role(j["title"])
         if not j["locations"] or not j["role"]:
             continue
-        if j["source"] != "SimplifyJobs" and not looks_new_grad(j["title"], j["text"]):
+        # SimplifyJobs is a curated new-grad list; it is re-checked below once descriptions are in.
+        if j["source"] != "SimplifyJobs" and not looks_new_grad(j["title"], j["text"], j["requirements"]):
             continue
         jobs.append(j)
     jobs = dedupe(jobs)
@@ -317,12 +285,21 @@ def main():
         for j, text in zip(missing, pool.map(lambda j: fetch_description(j["url"]), missing)):
             j["text"] = text
     log(f"Descriptions found for {sum(1 for j in missing if j['text'])}/{len(missing)} SimplifyJobs links")
+    # SimplifyJobs is hand-tagged, so it gets a looser bar: 3+ years always goes, 2 years
+    # only when the title doesn't say new grad ("Engineer 2 New Grad" stays).
+    def too_senior(j):
+        years = required_years(j["text"]) or 0
+        return years >= 3 or (years >= 2 and not new_grad_title(j["title"]))
+
+    before = len(jobs)
+    jobs = [j for j in jobs if j["source"] != "SimplifyJobs" or not too_senior(j)]
+    log(f"Dropped {before - len(jobs)} SimplifyJobs listings that ask for too much experience")
 
     for j in jobs:
         enrich(j, lookups)
         j["remote"] = any("remote" in loc.lower() for loc in j["locations"])
         j["id"] = re.sub(r"\W+", "-", f"{j['company']}-{j['title']}".lower()).strip("-")[:120]
-        del j["text"]
+        del j["text"], j["requirements"]
     jobs.sort(key=lambda j: j["posted_at"], reverse=True)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

@@ -96,7 +96,7 @@ _NON_CS = re.compile(
     r"\b(technician|mechanical|civil|chemical|electrical|manufacturing|process engineer|"
     r"sales|recruit\w*|nurse|accountant|accounting|marketing|legal|attorney|counsel|"
     r"clinical|pharmac\w*|designer|mechanic|construction|structural|hvac|field service|"
-    r"customer success|customer support|account executive|paralegal|teacher|tutor|operator|"
+    r"customer success|customer support|account executive|paralegal|teacher|tutor|operator|generalist|"
     r"rf|antenna|coordinator|planner)\b",
     re.I,
 )
@@ -110,7 +110,7 @@ ROLES = [
                             r"computer architecture|\bgpu\b|hardware engineer|robotics software"),
     ("Networking", r"\bnetwork(s|ing)?\b|\bnoc\b|\bccna\b|routing|switching|\bsd-?wan\b"),
     (SWE, r"software (engineer|developer|development engineer|engineering)|\bswe\b|\bsde\b"),
-    ("Quant & Trading", r"\bquant\w*|\btrad(er|ing)\b"),
+    ("Quant & Trading", r"\bquant(s|itative)?\b|\btrad(er|ing)\b"),
     ("AI & ML", r"machine learning|\bml\b|\bai\b|artificial intelligence|deep learning|"
                 r"computer vision|\bnlp\b|\bllm|research (scientist|engineer)|applied scientist"),
     ("Data Science & Analytics", r"\bdata\b|analytics|business intelligence|\bbi\b|statistic"),
@@ -136,11 +136,22 @@ _NEW_GRAD_TITLE = re.compile(
 )
 _NEW_GRAD_TEXT = re.compile(
     r"new grad|recent grad|recent college|graduat\w+ (in|by|between)\b.{0,30}202[67]|"
-    r"class of 202[67]|entry[- ]level|early[- ]career|0\s*(\+|-|–|to)\s*[1-3]?\s*years|"
-    r"no (prior )?(professional )?experience (is )?required",
+    r"class of 202[67]|entry[- ]level|early[- ]career|(?<![\d.])0\s*(\+|-|–|to)\s*[1-3]?\s*years|"
+    r"no (prior )?(professional )?experience (is )?required|"
+    r"(through|from|via|including) (\w+ )?internships?|academic (or personal )?projects|"
+    r"(recent|upcoming) graduat|pursuing a (bachelor|master)",
     re.I,
 )
-_YEARS = re.compile(r"(\d{1,2})\s*\+?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?\+?\s*years?", re.I)
+# "3+ years", "2-5 years", "1 year"; a range counts by its lower end. The lookbehind
+# stops "10+ years" from also reading as "0+ years".
+_YEARS = re.compile(r"(?<![\d.])(\d{1,2})\s*\+?\s*(?:(?:-|–|to)\s*\d{1,2}\s*\+?\s*)?years?\b", re.I)
+# Headings after which experience figures are wishes, not requirements.
+_PREFERRED = re.compile(
+    r"preferred (qualifications|skills|experience|requirements)|nice[- ]to[- ]haves?|bonus points|"
+    r"pluses|it'?s a plus|preferred:",
+    re.I,
+)
+_EXPERIENCE_NEARBY = re.compile(r"experien|industry|professional|in (software|engineering|the field)|working", re.I)
 
 
 def classify_role(title):
@@ -157,20 +168,40 @@ def classify_role(title):
     return None
 
 
-def min_years_required(text):
-    """Smallest 'N years' figure that sits next to the word experience."""
+def required_years(text):
+    """The most years of experience the posting requires, or None if it names none.
+
+    The largest figure wins: "3+ years of professional experience" next to "1+ years
+    of SDE experience" is a 3-year role. Figures under a "preferred" heading, and
+    "N years in lieu of a degree" alternatives, are skipped.
+    """
+    if not text:
+        return None
+    preferred = _PREFERRED.search(text)
+    end = preferred.start() if preferred else len(text)
     found = []
-    for m in _YEARS.finditer(text or ""):
-        window = text[m.start(): m.end() + 60].lower()
-        if "experience" in window:
+    for m in _YEARS.finditer(text, 0, end):
+        before = text[max(0, m.start() - 40):m.start()]
+        after = text[m.end():m.end() + 80]
+        if re.match(r"\s*(of age|old)\b", after, re.I) or "in lieu" in text[m.end():m.end() + 140].lower():
+            continue
+        if _EXPERIENCE_NEARBY.search(after) or "experience" in before.lower():
             found.append(int(m.group(1)))
-    return min(found) if found else None
+    return max(found) if found else None
 
 
-def looks_new_grad(title, text):
-    """For company job boards, which mix every level, decide if a role is new-grad."""
-    years = min_years_required(text)
-    if years is not None and years >= 3:
+def new_grad_title(title):
+    return bool(_NEW_GRAD_TITLE.search(title))
+
+
+def looks_new_grad(title, text, requirements=None):
+    """For company job boards, which mix every level, decide if a role is new-grad.
+
+    `requirements` is the minimum-qualifications section when the source gives it
+    separately; it is a cleaner place to read the years than the whole posting.
+    """
+    years = required_years(requirements or text)
+    if years is not None and years >= 2:
         return False
     if _NEW_GRAD_TITLE.search(title) or (years is not None and years <= 1):
         return True
@@ -190,7 +221,7 @@ def html_to_text(raw):
 
 _NO_SPONSOR = re.compile(
     r"(not|unable to|cannot|can't|can not|won't|will not|does not|do not|doesn't|don't|"
-    r"is not able to|are not able to|not able to|no longer)\s+(?:\w+\s+){0,4}?"
+    r"is not able to|are not able to|not able to|no longer)\s+(?:[\w.]+\s+){0,4}?"
     r"(sponsor|provide sponsorship|offer sponsorship|support (?:a )?visa)\w*"
     r"|without (?:the )?(?:need (?:for|of) )?(?:current or future |future |any )?"
     r"(?:employer |visa |immigration )?sponsorship"

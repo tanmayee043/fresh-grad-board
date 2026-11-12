@@ -10,24 +10,26 @@
     "waymo": "Waymo", "gusto": "Gusto", "flexport": "Flexport", "duolingo": "Duolingo",
     "toast": "Toast", "elastic": "Elastic", "okta": "Okta", "purestorage": "Pure Storage",
     "sofi": "SoFi", "carta": "Carta", "airtable": "Airtable", "intercom": "Intercom",
-    "nextdoor": "Nextdoor", "peloton": "Peloton", "sigmacomputing": "Sigma Computing",
-    "vercel": "Vercel", "anthropic": "Anthropic", "xai": "xAI", "lucidmotors": "Lucid Motors",
-    "motional": "Motional", "flatironhealth": "Flatiron Health", "oscar": "Oscar Health",
-    "togetherai": "Together AI", "mercury": "Mercury", "rubrik": "Rubrik",
-    "cockroachlabs": "Cockroach Labs", "launchdarkly": "LaunchDarkly", "mixpanel": "Mixpanel",
+    "nextdoor": "Nextdoor", "peloton": "Peloton", "sigmacomputing": "Sigma Computing", "vercel": "Vercel",
+    "anthropic": "Anthropic", "xai": "xAI", "lucidmotors": "Lucid Motors", "motional": "Motional",
+    "flatironhealth": "Flatiron Health", "oscar": "Oscar Health", "togetherai": "Together AI", "mercury": "Mercury",
+    "rubrik": "Rubrik", "cockroachlabs": "Cockroach Labs", "launchdarkly": "LaunchDarkly", "mixpanel": "Mixpanel",
     "braze": "Braze", "klaviyo": "Klaviyo", "faire": "Faire", "coursera": "Coursera",
     "spacex": "SpaceX", "vannevarlabs": "Vannevar Labs", "epirus": "Epirus", "figureai": "Figure AI",
-    "agilityrobotics": "Agility Robotics", "janestreet": "Jane Street", "imc": "IMC Trading",
-    "drweng": "DRW", "akunacapital": "Akuna Capital", "fiveringsllc": "Five Rings",
-    "point72": "Point72", "jumptrading": "Jump Trading", "towerresearchcapital": "Tower Research Capital",
-    "virtu": "Virtu Financial", "clearstreet": "Clear Street", "pagerduty": "PagerDuty",
+    "agilityrobotics": "Agility Robotics", "janestreet": "Jane Street", "imc": "IMC Trading", "drweng": "DRW",
+    "akunacapital": "Akuna Capital", "fiveringsllc": "Five Rings", "point72": "Point72", "jumptrading": "Jump Trading",
+    "towerresearchcapital": "Tower Research Capital", "virtu": "Virtu Financial", "clearstreet": "Clear Street", "pagerduty": "PagerDuty",
     "fivetran": "Fivetran", "planetscale": "PlanetScale", "tailscale": "Tailscale", "fastly": "Fastly",
-    "abnormalsecurity": "Abnormal Security", "chainguard": "Chainguard", "coreweave": "CoreWeave",
-    "labelbox": "Labelbox", "snorkelai": "Snorkel AI", "doximity": "Doximity", "komodohealth": "Komodo Health"
+    "abnormalsecurity": "Abnormal Security", "chainguard": "Chainguard", "coreweave": "CoreWeave", "labelbox": "Labelbox",
+    "snorkelai": "Snorkel AI", "doximity": "Doximity", "komodohealth": "Komodo Health", "wehrtyou": "Hudson River Trading",
+    "optiverus": "Optiver", "xtxmarketstechnologies": "XTX Markets", "squarepointcapital": "Squarepoint Capital", "chicagotrading": "Chicago Trading Company",
+    "schonfeld": "Schonfeld", "bridgewater89": "Bridgewater Associates", "aqr": "AQR", "flowtraders": "Flow Traders",
+    "worldquant": "WorldQuant", "genevatrading": "Geneva Trading", "vaticlabs": "Vatic Labs", "gelbergroup": "Gelber Group",
+    "dvtrading": "DV Trading", "mangroup": "Man Group"
   },
   "lever": {
     "palantir": "Palantir", "spotify": "Spotify", "zoox": "Zoox", "shieldai": "Shield AI",
-    "wealthfront": "Wealthfront", "ro": "Ro"
+    "wealthfront": "Wealthfront", "ro": "Ro", "belvederetrading": "Belvedere Trading"
   },
   "ashby": {
     "plaid": "Plaid", "webflow": "Webflow", "temporal": "Temporal", "cohere": "Cohere",
@@ -35,11 +37,11 @@
     "openai": "OpenAI", "snowflake": "Snowflake", "skydio": "Skydio", "benchling": "Benchling",
     "abridge": "Abridge", "harvey": "Harvey", "sierra": "Sierra", "cursor": "Cursor",
     "cognition": "Cognition", "baseten": "Baseten", "modal": "Modal", "pinecone": "Pinecone",
-    "kalshi": "Kalshi", "vanta": "Vanta", "drata": "Drata", "snyk": "Snyk", "clickhouse": "ClickHouse",
-    "supabase": "Supabase", "replit": "Replit", "amplitude": "Amplitude", "thumbtack": "Thumbtack",
-    "saronic": "Saronic", "physicalintelligence": "Physical Intelligence", "1password": "1Password",
+    "kalshi": "Kalshi", "vanta": "Vanta", "drata": "Drata", "snyk": "Snyk",
+    "clickhouse": "ClickHouse", "supabase": "Supabase", "replit": "Replit", "amplitude": "Amplitude",
+    "thumbtack": "Thumbtack", "saronic": "Saronic", "physicalintelligence": "Physical Intelligence", "1password": "1Password",
     "attio": "Attio", "cerebras": "Cerebras", "lambda": "Lambda", "crusoe": "Crusoe",
     "elevenlabs": "ElevenLabs", "mercor": "Mercor", "decagon": "Decagon", "commure": "Commure",
-    "headway": "Headway"
+    "headway": "Headway", "voleon": "Voleon", "quadrature": "Quadrature"
   }
 }
