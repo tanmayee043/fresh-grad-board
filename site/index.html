@@ -49,36 +49,42 @@
       <label class="check"><input type="checkbox" id="hideApplied"> Hide applied</label>
     </form>
 
-    <div class="chip-row">
-      <h2 class="chip-label" id="roles-label">Job type</h2>
-      <nav class="chips" id="roles" aria-labelledby="roles-label"></nav>
-    </div>
-    <div class="chip-row">
-      <h2 class="chip-label" id="industries-label">Industry</h2>
-      <nav class="chips" id="industries" aria-labelledby="industries-label"></nav>
-    </div>
-
-    <section class="board sponsor" id="sponsor-board" aria-labelledby="sponsor-title">
-      <header class="board-head">
-        <div class="stamp" aria-hidden="true">
-          <span class="stamp-count" id="sponsor-stamp">0</span>
-          <span class="stamp-word">Sponsors</span>
+    <div class="layout">
+      <aside class="panel" aria-label="Filter by job type and industry">
+        <div class="chip-row">
+          <h2 class="chip-label" id="roles-label">Job type</h2>
+          <nav class="chips" id="roles" aria-labelledby="roles-label"></nav>
         </div>
-        <div>
-          <h2 id="sponsor-title">Sponsors visas</h2>
-          <p>The posting says it sponsors, or the employer had H-1B petitions approved by USCIS. Check the posting before you apply.</p>
+        <div class="chip-row">
+          <h2 class="chip-label" id="industries-label">Industry</h2>
+          <nav class="chips" id="industries" aria-labelledby="industries-label"></nav>
         </div>
-      </header>
-      <div id="sponsor-list"></div>
-    </section>
+      </aside>
 
-    <details class="board other" id="other-board">
-      <summary>
-        <h2>No sponsorship or not stated <span class="count" id="other-count">0</span></h2>
-        <p>Postings that rule out sponsorship, need U.S. citizenship or a clearance, or don't say.</p>
-      </summary>
-      <div id="other-list"></div>
-    </details>
+      <div class="results">
+        <section class="board sponsor" id="sponsor-board" aria-labelledby="sponsor-title">
+          <header class="board-head">
+            <div class="stamp" aria-hidden="true">
+              <span class="stamp-count" id="sponsor-stamp">0</span>
+              <span class="stamp-word">Sponsors</span>
+            </div>
+            <div>
+              <h2 id="sponsor-title">Sponsors visas</h2>
+              <p>The posting says it sponsors, or the employer had H-1B petitions approved by USCIS. Check the posting before you apply.</p>
+            </div>
+          </header>
+          <div id="sponsor-list"></div>
+        </section>
+
+        <details class="board other" id="other-board">
+          <summary>
+            <h2>No sponsorship or not stated <span class="count" id="other-count">0</span></h2>
+            <p>Postings that rule out sponsorship, need U.S. citizenship or a clearance, or don't say.</p>
+          </summary>
+          <div id="other-list"></div>
+        </details>
+      </div>
+    </div>
   </main>
 
   <footer class="wrap foot">

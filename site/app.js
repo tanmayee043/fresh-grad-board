@@ -257,8 +257,17 @@ function setupThemeToggle() {
   sync();
 }
 
+// The side panel sticks just below the filter bar, whose height changes as it wraps.
+function trackFilterBarHeight() {
+  const bar = $("filters");
+  const update = () => document.documentElement.style.setProperty("--filters-h", `${bar.offsetHeight}px`);
+  new ResizeObserver(update).observe(bar);
+  update();
+}
+
 async function main() {
   setupThemeToggle();
+  trackFilterBarHeight();
   try {
     const res = await fetch("data/jobs.json", { cache: "no-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
