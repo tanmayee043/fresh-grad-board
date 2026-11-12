@@ -68,7 +68,7 @@ function letterLogo(el, company) {
 }
 
 const LOGO_SOURCES = [
-  // Google answers unknown sites with a generic 16px globe, so only trust bigger icons.
+  // The first service answers unknown sites with a generic 16px globe, so only trust bigger icons.
   { url: (d) => `https://www.google.com/s2/favicons?domain=${d}&sz=64`, minWidth: 17 },
   { url: (d) => `https://icons.duckduckgo.com/ip3/${d}.ico`, minWidth: 1 },
 ];

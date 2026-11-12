@@ -1,4 +1,4 @@
-"""Build data/h1b_sponsors.json from the USCIS H-1B Employer Data Hub export.
+"""Build data/h1b_sponsors.json from the government H-1B employer data export.
 
 Run occasionally (the data is published once per fiscal year):
     python scripts/build_h1b.py              # downloads FY2023

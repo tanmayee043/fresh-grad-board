@@ -15,7 +15,7 @@ from datetime import datetime
 
 BOT = "fresh-grad-board"
 HEADERS = {
-    "User-Agent": f"{BOT}/1.0 (personal new-grad job digest; +https://github.com/tanmayee043/fresh-grad-board)",
+    "User-Agent": f"{BOT}/1.0 (personal new-grad job digest)",
 }
 
 
@@ -120,10 +120,11 @@ def iso_to_epoch(value):
         return None
 
 
-def job(company, title, url, locations, posted_at, source, text=None, requirements=None):
-    """`requirements` is the minimum-qualifications text when a source gives it apart."""
+def job(company, title, url, locations, posted_at, source, text=None, requirements=None, domain=None):
+    """`requirements` is the minimum-qualifications text when a source gives it apart;
+    `domain` is the company website when the source lists it (used for the logo)."""
     return {
         "company": company.strip(), "title": " ".join(title.split()), "url": url,
         "locations": locations, "posted_at": posted_at, "source": source, "text": text,
-        "requirements": requirements,
+        "requirements": requirements, "domain": domain,
     }

@@ -1,10 +1,9 @@
-"""Job sources for big tech companies that run their own careers sites instead of
-Greenhouse, Lever or Ashby: Amazon, Microsoft and Netflix. Each one's robots.txt
-allows the job-search address used here.
+"""Job sources for large employers that run their own careers sites instead of a
+shared job-board service. Each site's robots.txt allows the job-search address used.
 
-Left out on purpose: Google (its robots.txt disallows the careers results pages),
-Apple (its site terms forbid automated access) and Meta (it rejects automated
-requests). Their new-grad roles still arrive through the SimplifyJobs list.
+Some large employers are left out on purpose: their robots.txt or site terms forbid
+automated access, or they reject automated requests. Their new-grad roles still
+arrive through the curated lists.
 
 Each source only fetches a full description for titles that pass the role filter,
 because the new-grad and sponsorship checks need it and these sites are large.
@@ -24,8 +23,6 @@ MAX_PAGES = 15
 def _text(*parts):
     return " ".join(html_to_text(p) for p in parts if p)
 
-
-# ---------------------------------------------------------------- Amazon
 
 AMAZON_QUERIES = [
     "software development engineer", "software engineer", "data engineer", "machine learning engineer",
@@ -65,14 +62,12 @@ def from_amazon(since):
     return out
 
 
-# ---------------------------------------------------------------- Microsoft
-
 MICROSOFT_QUERIES = ["software engineer", "data engineer", "network engineer", "new grad"]
 MICROSOFT = "https://apply.careers.microsoft.com"
 
 
 def from_microsoft(since):
-    """Microsoft throttles quick requests, so this paces itself and stops for the day
+    """This site throttles quick requests, so this paces itself and stops for the day
     at the first rate-limit answer, keeping whatever it already has."""
     found, out = {}, []
     try:
@@ -96,11 +91,9 @@ def from_microsoft(since):
                            x.get("standardizedLocations") or x.get("locations") or [], x["postedTs"],
                            "Microsoft", _text(d.get("jobDescription"))))
     except RateLimited:
-        log("  - Microsoft asked us to slow down; stopping Microsoft for today")
+        log("  - a careers site asked us to slow down; skipping it for today")
     return out
 
-
-# ---------------------------------------------------------------- Netflix
 
 NETFLIX = "https://explore.jobs.netflix.net/api/apply/v2/jobs"
 
@@ -131,5 +124,5 @@ SOURCES = {"Amazon": from_amazon, "Microsoft": from_microsoft, "Netflix": from_n
 def from_big_tech(since):
     with ThreadPoolExecutor(len(SOURCES)) as pool:
         results = dict(zip(SOURCES, pool.map(lambda fetch: fetch(since), SOURCES.values())))
-    log("Big tech: " + ", ".join(f"{name} {len(jobs)}" for name, jobs in results.items()))
+    log("Careers sites: " + ", ".join(str(len(jobs)) for jobs in results.values()) + " recent postings")
     return [j for jobs in results.values() for j in jobs]

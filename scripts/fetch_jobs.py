@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from big_tech import from_big_tech
+from jobright import from_jobright
 from net import get, iso_to_epoch, job, log
 from common import (
     INDUSTRIES, NAICS_INDUSTRY, PINNED_ROLES, ROLE_ORDER, classify_role, html_to_text, industry_from_name, industry_from_text,
@@ -21,6 +22,8 @@ from common import (
 ROOT = Path(__file__).resolve().parent.parent
 DATA = ROOT / "data"
 OUT = ROOT / "site" / "data" / "jobs.json"
+# Hand-curated new-grad lists: trusted on level, then re-checked for experience asked.
+CURATED = {"SimplifyJobs", "Jobright"}
 SIMPLIFY_URL = "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json"
 # Applicant-tracking hosts: a link on one of these says nothing about the company's own site.
 ATS_HOSTS = (
@@ -28,7 +31,7 @@ ATS_HOSTS = (
     "jobvite", "icims", "smartrecruiters", "taleo", "successfactors", "ultipro", "paylocity", "adp.com",
     "bamboohr", "recruitee", "breezy", "dayforce", "rippling", "simplify", "linkedin", "indeed",
     "eightfold", "phenompeople", "avature", "jazzhr", "pinpointhq", "teamtailor", "gem.com",
-    "careers-page", "jibeapply", "hirebridge", "applicantpro", "paycom", "paycor", "workforcenow", "brassring",
+    "careers-page", "jibeapply", "jobright", "hirebridge", "applicantpro", "paycom", "paycor", "workforcenow", "brassring",
 )
 GENERIC_TAILS = {
     "TECHNOLOGIES", "TECHNOLOGY", "HOLDINGS", "GROUP", "SYSTEMS", "SOLUTIONS", "SOFTWARE",
@@ -46,7 +49,7 @@ def from_simplify(since):
             continue
         out.append(job(x["company_name"], x["title"], x["url"], x.get("locations") or [],
                        x["date_posted"], "SimplifyJobs"))
-    log(f"SimplifyJobs: {len(out)} recent listings")
+    log(f"Curated list: {len(out)} recent listings")
     return out
 
 
@@ -113,7 +116,7 @@ _ashby_cache = {}
 
 
 def fetch_description(url):
-    """Pull the posting text for a SimplifyJobs link so sponsorship can be checked."""
+    """Pull the posting text for a curated-list link so sponsorship can be checked."""
     clean = url.split("?")[0].rstrip("/")
     m = re.search(r"greenhouse\.io/([^/]+)/jobs/(\d+)", clean)
     if m:
@@ -174,12 +177,14 @@ class Lookups:
         for name in self.h1b:
             self.h1b_by_first.setdefault(name.split()[0], []).append(name)
 
-    def domain(self, company, url):
-        """Company website for its logo: the domain map first, else the careers link
-        when it is on the company's own site rather than a job-board host."""
+    def domain(self, company, url, hint=None):
+        """Company website for its logo: the domain map first, then the website the
+        source listed, else the careers link when it is on the company's own site."""
         n = normalize_company(company)
         if n in self.domains:
             return self.domains[n]
+        if hint:
+            return hint
         host = (urllib.parse.urlsplit(url).hostname or "").lower()
         if not host or any(ats in host for ats in ATS_HOSTS):
             return None
@@ -201,7 +206,7 @@ class Lookups:
         n = normalize_company(company)
         n = self.aliases.get(n, n)
         words = n.split()
-        # 'Dell Technologies' files as 'DELL USA' / 'DELL PRODUCTS': drop generic tails.
+        # 'Example Technologies' files as 'EXAMPLE USA' / 'EXAMPLE PRODUCTS': drop generic tails.
         while len(words) > 1 and words[-1] in GENERIC_TAILS:
             words.pop()
         for candidate in dict.fromkeys([n, " ".join(words)]):
@@ -238,7 +243,7 @@ def enrich(j, lookups):
         j["sponsorship"], j["basis"] = "no", "unknown"
     j["h1b_approvals"] = approvals
     j["has_description"] = bool(j["text"])
-    j["domain"] = lookups.domain(j["company"], j["url"])
+    j["domain"] = lookups.domain(j["company"], j["url"], j["domain"])
 
 
 # ---------------------------------------------------------------- main
@@ -251,6 +256,8 @@ def dedupe(jobs):
             kept = seen[key]
             kept["locations"] = list(dict.fromkeys(kept["locations"] + j["locations"]))
             kept["text"] = kept["text"] or j["text"]
+            kept["requirements"] = kept["requirements"] or j["requirements"]
+            kept["domain"] = kept["domain"] or j["domain"]
             kept["posted_at"] = max(kept["posted_at"], j["posted_at"])
         else:
             seen[key] = j
@@ -266,40 +273,41 @@ def main():
     since = now - args.hours * 3600
     lookups = Lookups()
 
-    raw = from_simplify(since) + from_boards(since) + from_big_tech(since)
+    raw = from_simplify(since) + from_jobright(since) + from_boards(since) + from_big_tech(since)
     jobs = []
     for j in raw:
         j["locations"] = us_locations(j["locations"])
         j["role"] = classify_role(j["title"])
         if not j["locations"] or not j["role"]:
             continue
-        # SimplifyJobs is a curated new-grad list; it is re-checked below once descriptions are in.
-        if j["source"] != "SimplifyJobs" and not looks_new_grad(j["title"], j["text"], j["requirements"]):
+        # Curated lists are re-checked below once descriptions are in.
+        if j["source"] not in CURATED and not looks_new_grad(j["title"], j["text"], j["requirements"]):
             continue
         jobs.append(j)
     jobs = dedupe(jobs)
     log(f"Kept {len(jobs)} US new-grad CS jobs; fetching missing descriptions…")
 
-    missing = [j for j in jobs if not j["text"]]
+    # The second list's job pages sit behind a bot check, so they are never opened.
+    missing = [j for j in jobs if not j["text"] and j["source"] != "Jobright"]
     with ThreadPoolExecutor(12) as pool:
         for j, text in zip(missing, pool.map(lambda j: fetch_description(j["url"]), missing)):
             j["text"] = text
-    log(f"Descriptions found for {sum(1 for j in missing if j['text'])}/{len(missing)} SimplifyJobs links")
-    # SimplifyJobs is hand-tagged, so it gets a looser bar: 3+ years always goes, 2 years
-    # only when the title doesn't say new grad ("Engineer 2 New Grad" stays).
+    log(f"Descriptions found for {sum(1 for j in missing if j['text'])}/{len(missing)} curated-list links")
+    # Curated lists get a looser bar: 3+ years always goes, 2 years only when the
+    # title doesn't say new grad ("Engineer 2 New Grad" stays).
     def too_senior(j):
-        years = required_years(j["text"]) or 0
+        years = required_years(j["requirements"] or j["text"]) or 0
         return years >= 3 or (years >= 2 and not new_grad_title(j["title"]))
 
     before = len(jobs)
-    jobs = [j for j in jobs if j["source"] != "SimplifyJobs" or not too_senior(j)]
-    log(f"Dropped {before - len(jobs)} SimplifyJobs listings that ask for too much experience")
+    jobs = [j for j in jobs if j["source"] not in CURATED or not too_senior(j)]
+    log(f"Dropped {before - len(jobs)} curated listings that ask for too much experience")
 
     for j in jobs:
         enrich(j, lookups)
         j["remote"] = any("remote" in loc.lower() for loc in j["locations"])
         j["id"] = re.sub(r"\W+", "-", f"{j['company']}-{j['title']}".lower()).strip("-")[:120]
-        del j["text"], j["requirements"]
+        del j["text"], j["requirements"], j["source"]
     jobs.sort(key=lambda j: j["posted_at"], reverse=True)
 
     OUT.parent.mkdir(parents=True, exist_ok=True)

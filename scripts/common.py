@@ -13,7 +13,7 @@ _SUFFIXES = {
 
 
 def normalize_company(name):
-    """'Meta Platforms, Inc.' -> 'META PLATFORMS'; used to join datasets."""
+    """'Example Platforms, Inc.' -> 'EXAMPLE PLATFORMS'; used to join datasets."""
     name = name.upper().split(" DBA ")[0]
     name = re.sub(r"\bL\.?\s?L\.?\s?C\b|\bL\.?\s?L\.?\s?P\b|\bL\.?\s?P\b", " LLC ", name)
     name = name.replace("&", " AND ").replace("’", "'")
@@ -85,7 +85,7 @@ def split_locations(text):
 
 # ---------------------------------------------------------------- roles
 
-_INTERN = re.compile(r"\b(intern|internship|co-?op|summer 202\d|student)\b", re.I)
+_INTERN = re.compile(r"\b(interns?|internships?|co-?ops?|summer 202\d|students?)\b", re.I)
 _SENIOR = re.compile(
     r"\b(senior|sr|staff|principal|lead|manager|director|head of|vp|vice president|"
     r"architect|distinguished|fellow|chief|expert)\b|\b(II|III|IV|[2-9])\s*(?:$|[-,(/])",
