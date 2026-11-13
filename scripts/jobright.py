@@ -10,7 +10,7 @@ import re
 import urllib.parse
 from datetime import datetime, timezone
 
-from common import new_grad_title
+from common import new_grad_title, remember
 from net import get, job, log
 
 # The lists are renamed for each graduating class; update the year when they roll over.
@@ -52,6 +52,7 @@ def from_jobright(since):
     for repo in LISTS:
         for company, domain, title, url, location, work_model, date in _rows(repo):
             posted = _row_date(date)
+            remember(company, title, posted)
             if not posted or posted < since or url in seen or not new_grad_title(title):
                 continue
             seen.add(url)

@@ -3,6 +3,7 @@ seniority, industries and visa sponsorship."""
 
 import html
 import re
+import threading
 
 # ---------------------------------------------------------------- companies
 
@@ -24,6 +25,33 @@ def normalize_company(name):
     while words and words[0] == "THE":
         words.pop(0)
     return " ".join(words)
+
+
+def job_key(company, title):
+    """Same company and same title, ignoring case and punctuation."""
+    return normalize_company(company), re.sub(r"\W+", "", title.lower())
+
+
+# ---------------------------------------------------------------- repost history
+
+# Earliest date each company + title was seen anywhere, open or closed. A job whose
+# title was already listed well before its current posting date is a repost.
+REPOST_GAP = 5 * 86400
+_first_seen = {}
+_first_seen_lock = threading.Lock()
+
+
+def remember(company, title, posted_at):
+    if not posted_at or not company or not title:
+        return
+    key = job_key(company, title)
+    with _first_seen_lock:
+        if posted_at < _first_seen.get(key, posted_at + 1):
+            _first_seen[key] = posted_at
+
+
+def first_listed(company, title):
+    return _first_seen.get(job_key(company, title))
 
 
 # ---------------------------------------------------------------- locations

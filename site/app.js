@@ -100,6 +100,13 @@ function renderRow(job) {
   role.className = "role";
   role.textContent = job.role;
   meta.append(role, ` role in ${listLocations(job.locations)}`);
+  if (job.reposted) {
+    const tag = document.createElement("span");
+    tag.className = "repost-tag";
+    const first = new Date(job.first_listed * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+    tag.textContent = `Reposted, first listed ${first}`;
+    node.querySelector(".company").append(" ", tag);
+  }
   node.querySelector(".evidence").append(evidenceNode(job));
   const posted = node.querySelector(".posted");
   posted.dateTime = new Date(job.posted_at * 1000).toISOString();
@@ -122,14 +129,17 @@ function renderRow(job) {
 }
 
 const sponsorshipFilter = () => document.querySelector('input[name="sponsorship"]:checked').value;
+const postingFilter = () => document.querySelector('input[name="posting"]:checked').value;
 
 function filtered({ ignore = "" } = {}) {
   const sponsorship = ignore === "sponsorship" ? "all" : sponsorshipFilter();
+  const posting = ignore === "posting" ? "all" : postingFilter();
   const q = $("q").value.trim().toLowerCase();
   const since = Date.now() / 1000 - Number($("window").value) * 3600;
   return state.data.jobs.filter((j) =>
     j.posted_at >= since &&
     (sponsorship === "all" || (sponsorship === "yes") === (j.sponsorship === "yes")) &&
+    (posting === "all" || (posting === "repost") === Boolean(j.reposted)) &&
     (ignore === "role" || !state.role || j.role === state.role) &&
     (!$("remote").checked || j.remote) &&
     (!$("hideApplied").checked || !state.applied.has(j.id)) &&
@@ -210,6 +220,11 @@ function renderSegmentCounts() {
   $("seg-all").textContent = jobs.length;
   $("seg-yes").textContent = yes;
   $("seg-no").textContent = jobs.length - yes;
+  const byPosting = filtered({ ignore: "posting" });
+  const reposts = byPosting.filter((j) => j.reposted).length;
+  $("post-all").textContent = byPosting.length;
+  $("post-new").textContent = byPosting.length - reposts;
+  $("post-repost").textContent = reposts;
 }
 
 function render() {
@@ -236,6 +251,7 @@ function clearFilters() {
   $("remote").checked = false;
   $("hideApplied").checked = false;
   document.querySelector('input[name="sponsorship"][value="all"]').checked = true;
+  document.querySelector('input[name="posting"][value="all"]').checked = true;
   state.industry = "";
   state.role = "";
   render();
@@ -281,7 +297,9 @@ async function main() {
   for (const id of ["q", "window", "remote", "hideApplied"]) {
     $(id).addEventListener(id === "q" ? "input" : "change", render);
   }
-  for (const radio of document.querySelectorAll('input[name="sponsorship"]')) radio.addEventListener("change", render);
+  for (const radio of document.querySelectorAll('input[name="sponsorship"], input[name="posting"]')) {
+    radio.addEventListener("change", render);
+  }
   const otherBoard = $("other-board");
   otherBoard.open = store.get(OTHER_OPEN_KEY, false);
   otherBoard.addEventListener("toggle", () => {

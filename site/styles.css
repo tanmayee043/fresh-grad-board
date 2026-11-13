@@ -11,6 +11,8 @@
   --accent-wash: #e2f6ee;
   --on-accent: #ffffff;
   --applied: #3a5bc7;
+  --repost-ink: #7a4b00;
+  --repost-wash: #fff1d1;
   --radius-s: 8px;
   --radius-l: 16px;
   color-scheme: light;
@@ -27,6 +29,8 @@
   --accent-wash: #1b3a45;
   --on-accent: #062219;
   --applied: #9db3ff;
+  --repost-ink: #ffd58a;
+  --repost-wash: #3b3017;
   color-scheme: dark;
 }
 
@@ -72,7 +76,7 @@ a { color: inherit; }
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
 }
-.segmented { flex: 1 1 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; padding: 0; border: 0; }
+.segmented { flex: 0 1 auto; display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; margin: 0; padding: 0; border: 0; }
 .segmented legend { float: left; padding: 0; font-size: 0.875rem; font-weight: 600; }
 .segments {
   display: inline-flex; padding: 3px; gap: 2px;
@@ -213,6 +217,11 @@ a { color: inherit; }
 
 .job-main { min-width: 0; }
 .company { margin: 0; font-weight: 600; font-size: 0.9375rem; }
+.repost-tag {
+  display: inline-block; margin-left: 4px; padding: 1px 8px; border-radius: 999px;
+  font-size: 0.75rem; font-weight: 600; vertical-align: 1px;
+  color: var(--repost-ink); background: var(--repost-wash);
+}
 .title { margin: 2px 0 0; font-size: 1.0625rem; font-weight: 500; line-height: 1.35; overflow-wrap: anywhere; }
 .title a { text-decoration: none; }
 .title a:hover { text-decoration: underline; text-underline-offset: 3px; }
@@ -250,6 +259,7 @@ a { color: inherit; }
   .masthead { padding-top: 60px; }
   .theme-toggle { top: -46px; }
   .filters { position: static; }
+  .segmented { flex: 1 1 100%; }
   .segmented legend { float: none; width: 100%; }
   .segments { width: 100%; }
   .segments label { flex: 1; }

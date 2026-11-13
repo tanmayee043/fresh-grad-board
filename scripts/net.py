@@ -87,12 +87,26 @@ def allowed(url):
 
 # ---------------------------------------------------------------- requests
 
+class _Gone:
+    """What get() returns for 404/410: falsy like None, but says the page is gone."""
+
+    def __bool__(self):
+        return False
+
+    def get(self, *args):
+        return None
+
+
+GONE = _Gone()
+
+
 class RateLimited(Exception):
     """The site asked us to slow down (HTTP 429); callers should stop, not retry."""
 
 
 def get(url, as_json=True, timeout=25, raise_on_429=False):
-    """GET and decode; None on any failure or when robots.txt disallows the URL."""
+    """GET and decode; None on any failure or when robots.txt disallows the URL,
+    GONE when the page no longer exists (404 or 410)."""
     if not allowed(url):
         log(f"  - skipped by robots.txt: {url[:90]}")
         return None
@@ -104,6 +118,8 @@ def get(url, as_json=True, timeout=25, raise_on_429=False):
     except urllib.error.HTTPError as exc:
         if exc.code == 429 and raise_on_429:
             raise RateLimited(url) from exc
+        if exc.code in (404, 410):
+            return GONE
         log(f"  ! {url[:90]}: HTTP {exc.code}")
         return None
     except Exception as exc:  # one bad source must not sink the run

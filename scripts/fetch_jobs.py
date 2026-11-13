@@ -13,10 +13,11 @@ from pathlib import Path
 
 from big_tech import from_big_tech
 from jobright import from_jobright
-from net import get, iso_to_epoch, job, log
+from net import GONE, get, iso_to_epoch, job, log
 from common import (
-    INDUSTRIES, NAICS_INDUSTRY, PINNED_ROLES, ROLE_ORDER, classify_role, html_to_text, industry_from_name, industry_from_text,
-    looks_new_grad, new_grad_title, normalize_company, required_years, split_locations, sponsorship_from_text, us_locations,
+    INDUSTRIES, NAICS_INDUSTRY, PINNED_ROLES, REPOST_GAP, ROLE_ORDER, classify_role, first_listed, html_to_text,
+    industry_from_name, industry_from_text, job_key, looks_new_grad, new_grad_title, normalize_company, remember,
+    required_years, split_locations, sponsorship_from_text, us_locations,
 )
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -45,6 +46,7 @@ def from_simplify(since):
     listings = get(SIMPLIFY_URL, timeout=90) or []
     out = []
     for x in listings:
+        remember(x.get("company_name"), x.get("title"), x.get("date_posted"))
         if not (x.get("active") and x.get("is_visible")) or x.get("date_posted", 0) < since:
             continue
         out.append(job(x["company_name"], x["title"], x["url"], x.get("locations") or [],
@@ -58,6 +60,7 @@ def from_greenhouse(token, company, since):
     out = []
     for x in data.get("jobs", []):
         posted = iso_to_epoch(x.get("first_published") or x.get("updated_at"))
+        remember(company, x["title"], posted)
         if not posted or posted < since:
             continue
         locs = split_locations((x.get("location") or {}).get("name", ""))
@@ -71,6 +74,7 @@ def from_lever(token, company, since):
     out = []
     for x in data:
         posted = (x.get("createdAt") or 0) // 1000
+        remember(company, x["text"], posted)
         if posted < since:
             continue
         cats = x.get("categories") or {}
@@ -88,6 +92,7 @@ def from_ashby(token, company, since):
     out = []
     for x in data.get("jobs", []):
         posted = iso_to_epoch(x.get("publishedAt"))
+        remember(company, x["title"], posted)
         if not x.get("isListed", True) or not posted or posted < since:
             continue
         locs = [x.get("location", "")] + [s.get("location", "") for s in x.get("secondaryLocations") or []]
@@ -116,17 +121,18 @@ _ashby_cache = {}
 
 
 def fetch_description(url):
-    """Pull the posting text for a curated-list link so sponsorship can be checked."""
+    """Pull the posting text for a curated-list link so sponsorship can be checked.
+    Returns GONE when the company's page says the posting no longer exists."""
     clean = url.split("?")[0].rstrip("/")
     m = re.search(r"greenhouse\.io/([^/]+)/jobs/(\d+)", clean)
     if m:
         x = get(f"https://boards-api.greenhouse.io/v1/boards/{m[1]}/jobs/{m[2]}")
-        return html_to_text(x.get("content")) if x else None
+        return html_to_text(x.get("content")) if x else x
     m = re.search(r"jobs\.lever\.co/([^/]+)/([0-9a-f-]{36})", clean)
     if m:
         x = get(f"https://api.lever.co/v0/postings/{m[1]}/{m[2]}")
         if not x:
-            return None
+            return x
         lists = " ".join(html_to_text(l.get("content")) for l in x.get("lists", []))
         return " ".join([x.get("descriptionPlain", ""), lists, x.get("additionalPlain", "")])
     m = re.search(r"jobs\.ashbyhq\.com/([^/]+)/([0-9a-f-]{36})", clean)
@@ -136,14 +142,17 @@ def fetch_description(url):
         for x in _ashby_cache[m[1]].get("jobs", []):
             if x.get("id") == m[2]:
                 return x.get("descriptionPlain")
-        return None
+        # The board loaded but no longer lists this job.
+        return GONE if _ashby_cache[m[1]].get("jobs") else None
     m = re.match(r"https://(([^./]+)\.wd\d+\.myworkdayjobs\.com)/(?:[a-z]{2}-[A-Z]{2}/)?([^/]+)/(job/.+)", clean)
     if m:
         x = get(f"https://{m[1]}/wday/cxs/{m[2]}/{m[3]}/{m[4]}")
+        if x is GONE:
+            return GONE
         return html_to_text(((x or {}).get("jobPostingInfo") or {}).get("jobDescription")) or None
     page = get(url, as_json=False)
     if not page:
-        return None
+        return page
     # Many applicant-tracking pages embed the posting as JSON-LD even when the
     # visible page is rendered by JavaScript.
     for block in re.findall(r'(?is)<script[^>]+ld\+json[^>]*>(.*?)</script>', page):
@@ -251,7 +260,7 @@ def enrich(j, lookups):
 def dedupe(jobs):
     seen = {}
     for j in jobs:
-        key = (normalize_company(j["company"]), re.sub(r"\W+", "", j["title"].lower()))
+        key = job_key(j["company"], j["title"])
         if key in seen:
             kept = seen[key]
             kept["locations"] = list(dict.fromkeys(kept["locations"] + j["locations"]))
@@ -293,6 +302,9 @@ def main():
         for j, text in zip(missing, pool.map(lambda j: fetch_description(j["url"]), missing)):
             j["text"] = text
     log(f"Descriptions found for {sum(1 for j in missing if j['text'])}/{len(missing)} curated-list links")
+    closed = [j for j in jobs if j["text"] is GONE]
+    jobs = [j for j in jobs if j["text"] is not GONE]
+    log(f"Dropped {len(closed)} listings whose company page says the job is gone")
     # Curated lists get a looser bar: 3+ years always goes, 2 years only when the
     # title doesn't say new grad ("Engineer 2 New Grad" stays).
     def too_senior(j):
@@ -306,6 +318,9 @@ def main():
     for j in jobs:
         enrich(j, lookups)
         j["remote"] = any("remote" in loc.lower() for loc in j["locations"])
+        first = first_listed(j["company"], j["title"])
+        j["reposted"] = bool(first and first < j["posted_at"] - REPOST_GAP)
+        j["first_listed"] = first if j["reposted"] else None
         j["id"] = re.sub(r"\W+", "-", f"{j['company']}-{j['title']}".lower()).strip("-")[:120]
         del j["text"], j["requirements"], j["source"]
     jobs.sort(key=lambda j: j["posted_at"], reverse=True)
@@ -321,7 +336,8 @@ def main():
         "jobs": jobs,
     }, indent=1, ensure_ascii=False), encoding="utf-8")
     yes = sum(j["sponsorship"] == "yes" for j in jobs)
-    log(f"Wrote {len(jobs)} jobs ({yes} sponsor visas) to {OUT}")
+    reposts = sum(j["reposted"] for j in jobs)
+    log(f"Wrote {len(jobs)} jobs ({yes} sponsor visas, {reposts} reposts) to {OUT}")
 
 
 if __name__ == "__main__":
