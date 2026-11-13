@@ -26,6 +26,10 @@ jobs:
           python-version: "3.12"
       - name: Fetch jobs posted in the last 3 days
         run: python scripts/fetch_jobs.py
+      # A version on the script and stylesheet links makes browsers fetch the new
+      # files after a deploy instead of mixing a fresh page with cached code.
+      - name: Stamp asset links with the commit
+        run: sed -i -E "s/(app\.js|styles\.css)\"/\1?v=${GITHUB_SHA::7}\"/g" site/index.html
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
