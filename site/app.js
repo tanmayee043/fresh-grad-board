@@ -3,6 +3,7 @@
 const APPLIED_KEY = "fgb:applied"; // older format: a list of job ids
 const APPLICATIONS_KEY = "fgb:applications";
 const APPS_OPEN_KEY = "fgb:apps-open";
+const HIDDEN_KEY = "fgb:hidden-companies";
 const OTHER_OPEN_KEY = "fgb:other-open";
 const THEME_KEY = "fgb:theme";
 
@@ -24,7 +25,24 @@ const state = {
   // Job id -> what you applied to and when. Details are saved with the mark so the
   // list survives after the job drops out of the daily feed.
   applications: store.get(APPLICATIONS_KEY, {}),
+  hiddenCompanies: store.get(HIDDEN_KEY, []),
 };
+
+// "Acme, Inc." and "acme inc" are the same company; legal suffixes don't count.
+function companyKey(name) {
+  return name.toLowerCase().replace(/&/g, " and ").replace(/[^a-z0-9]+/g, " ")
+    .replace(/^the /, "").replace(/( (inc|llc|ltd|corp|corporation|co|company|plc|lp))+ *$/, "").trim();
+}
+
+// A hidden name also covers longer names that start with it, so "Amazon" hides
+// "Amazon Web Services", but whole words only: "Meta" leaves "Metabase" alone.
+function isHiddenCompany(company) {
+  const key = companyKey(company);
+  return state.hiddenCompanies.some((name) => {
+    const hidden = companyKey(name);
+    return hidden && (key === hidden || key.startsWith(hidden + " "));
+  });
+}
 
 function markApplied(job, on) {
   if (on) {
@@ -175,6 +193,7 @@ function filtered({ ignore = "" } = {}) {
     (ignore === "role" || !state.role || j.role === state.role) &&
     (!$("remote").checked || j.remote) &&
     (!$("hideApplied").checked || !state.applications[j.id]) &&
+    (ignore === "hidden" || !isHiddenCompany(j.company)) &&
     (ignore === "industry" || !state.industry || j.industry === state.industry) &&
     (!q || `${j.company} ${j.title} ${j.locations.join(" ")}`.toLowerCase().includes(q))
   );
@@ -323,8 +342,57 @@ function renderApplications() {
   list.append(ol);
 }
 
+function renderHiddenCompanies() {
+  const list = $("hidden-list");
+  list.replaceChildren();
+  for (const name of state.hiddenCompanies) {
+    const li = document.createElement("li");
+    const b = document.createElement("button");
+    b.type = "button";
+    b.className = "hidden-chip";
+    b.setAttribute("aria-label", `Show ${name} again`);
+    b.append(name);
+    const x = document.createElement("span");
+    x.setAttribute("aria-hidden", "true");
+    x.textContent = "×";
+    b.append(x);
+    b.addEventListener("click", () => {
+      state.hiddenCompanies = state.hiddenCompanies.filter((n) => n !== name);
+      store.set(HIDDEN_KEY, state.hiddenCompanies);
+      render();
+    });
+    li.append(b);
+    list.append(li);
+  }
+  // Only jobs that the other filters would otherwise show.
+  const count = filtered({ ignore: "hidden" }).length - filtered().length;
+  $("hide-note").textContent = state.hiddenCompanies.length
+    ? `${count} job${count === 1 ? "" : "s"} hidden. Tap a name to show it again.`
+    : "Jobs from companies you add here won't show up.";
+}
+
+function setupHideForm() {
+  const names = [...new Set(state.data.jobs.map((j) => j.company))].sort((a, b) => a.localeCompare(b));
+  $("company-names").replaceChildren(...names.map((n) => Object.assign(document.createElement("option"), { value: n })));
+  $("hide-form").addEventListener("submit", (event) => {
+    event.preventDefault();
+    const input = $("hide-input");
+    const typed = input.value.trim().replace(/\s+/g, " ");
+    input.value = "";
+    if (!companyKey(typed)) return;
+    // Use the board's spelling when the typed name matches a company on it.
+    const name = names.find((n) => companyKey(n) === companyKey(typed)) || typed;
+    if (!state.hiddenCompanies.some((n) => companyKey(n) === companyKey(name))) {
+      state.hiddenCompanies = [...state.hiddenCompanies, name];
+      store.set(HIDDEN_KEY, state.hiddenCompanies);
+    }
+    render();
+  });
+}
+
 function render() {
   renderApplications();
+  renderHiddenCompanies();
   renderSegmentCounts();
   renderChips();
   const choice = sponsorshipFilter();
@@ -390,6 +458,7 @@ async function main() {
     return;
   }
   migrateOldMarks();
+  setupHideForm();
   $("updated").textContent = `Updated ${timeAgo(state.data.generated_at)}. New jobs arrive every morning.`;
 
   for (const id of ["q", "window", "remote", "hideApplied"]) {

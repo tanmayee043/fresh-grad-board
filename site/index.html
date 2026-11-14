@@ -59,7 +59,17 @@
     </form>
 
     <div class="layout">
-      <aside class="panel" aria-label="Filter by job type and industry">
+      <aside class="panel" aria-label="Filter by job type, industry and company">
+        <div class="chip-row hide-box">
+          <h2 class="chip-label" id="hidden-label">Hidden companies</h2>
+          <form class="hide-form" id="hide-form">
+            <input type="text" id="hide-input" list="company-names" placeholder="Company to hide" autocomplete="off" aria-labelledby="hidden-label">
+            <button type="submit">Hide</button>
+          </form>
+          <datalist id="company-names"></datalist>
+          <ul class="hidden-list" id="hidden-list"></ul>
+          <p class="hide-note" id="hide-note" aria-live="polite"></p>
+        </div>
         <div class="chip-row">
           <h2 class="chip-label" id="roles-label">Job type</h2>
           <nav class="chips" id="roles" aria-labelledby="roles-label"></nav>

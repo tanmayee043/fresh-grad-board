@@ -122,6 +122,29 @@ a { color: inherit; }
 .chip[aria-pressed="true"] .n { color: inherit; opacity: 0.75; }
 .chip:disabled { opacity: 0.45; cursor: default; }
 
+/* hidden companies */
+.hide-form { display: flex; gap: 6px; }
+.hide-form input {
+  flex: 1; min-width: 0; min-height: 36px; padding: 6px 10px;
+  font: inherit; font-size: 16px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-s);
+}
+.hide-form button {
+  flex: none; min-height: 36px; padding: 0 14px; font: inherit; font-size: 0.875rem; font-weight: 600;
+  color: var(--paper); background: var(--ink); border: 0; border-radius: var(--radius-s); cursor: pointer;
+}
+.hidden-list { list-style: none; display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 0; padding: 0; }
+.hidden-list:empty { display: none; }
+.hidden-chip {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 2px 10px;
+  font: inherit; font-size: 0.8125rem; color: var(--ink); text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--ink) 40%, transparent);
+  background: color-mix(in srgb, var(--ink) 6%, transparent); border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+}
+.hidden-chip span { text-decoration: none; color: var(--muted); font-size: 1rem; line-height: 1; }
+.hidden-chip:hover { border-color: var(--muted); }
+.hide-note { margin: 6px 0 0; font-size: 0.8125rem; color: var(--muted); }
+
 /* side panel: job type and industry */
 @media (min-width: 900px) {
   .layout {
@@ -140,6 +163,8 @@ a { color: inherit; }
   .panel .chip-row { padding-top: 12px; }
   .panel .chip-row + .chip-row { margin-top: 8px; border-top: 1px solid var(--line); }
   .panel .chip-label { padding: 0 10px; }
+  .panel .hide-box { padding: 12px 10px 4px; }
+  .panel .hide-box .chip-label { padding: 0; }
   .panel .chips { flex-direction: column; flex-wrap: nowrap; gap: 2px; }
   .panel .chip {
     display: flex; justify-content: space-between; align-items: center; gap: 12px;
