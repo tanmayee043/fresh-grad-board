@@ -249,6 +249,33 @@ a { color: inherit; }
 .job.is-applied .apply { background: transparent; color: var(--muted); border: 1px solid var(--line); }
 .job.is-applied .applied { color: var(--applied); font-weight: 600; }
 
+/* your applications */
+.apps-link {
+  display: inline-block; margin-top: 8px; font-size: 0.875rem; font-weight: 600;
+  color: var(--applied); text-underline-offset: 3px;
+}
+.apps-board { margin-top: 0; scroll-margin-top: calc(var(--filters-h, 0px) + 16px); }
+.apps-board summary h2 { color: var(--applied); }
+.apps { list-style: none; margin: 0; padding: 0; }
+.app {
+  display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center;
+  padding: 10px 0; border-top: 1px solid var(--line);
+}
+.app .logo { width: 36px; height: 36px; border-radius: 8px; font-size: 1rem; }
+.app .logo img { width: 22px; height: 22px; }
+.app-main { min-width: 0; }
+.app-title { font-weight: 600; color: var(--ink); overflow-wrap: anywhere; }
+a.app-title { text-decoration: none; }
+a.app-title:hover { text-decoration: underline; }
+.app-sub { margin: 2px 0 0; font-size: 0.8125rem; color: var(--muted); }
+.app-status { display: inline-block; padding: 0 8px; border-radius: 999px; border: 1px solid var(--line); }
+.app-status.open { color: var(--accent); border-color: color-mix(in srgb, var(--accent) 40%, transparent); }
+.app-remove {
+  font: inherit; font-size: 0.8125rem; color: var(--muted); background: none;
+  border: 1px solid var(--line); border-radius: 8px; min-height: 32px; padding: 0 12px; cursor: pointer;
+}
+.app-remove:hover { color: var(--ink); border-color: var(--muted); }
+
 .empty { padding: 24px 0; color: var(--muted); }
 .empty button { font: inherit; color: var(--accent); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
 

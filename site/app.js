@@ -1,6 +1,8 @@
 "use strict";
 
-const APPLIED_KEY = "fgb:applied";
+const APPLIED_KEY = "fgb:applied"; // older format: a list of job ids
+const APPLICATIONS_KEY = "fgb:applications";
+const APPS_OPEN_KEY = "fgb:apps-open";
 const OTHER_OPEN_KEY = "fgb:other-open";
 const THEME_KEY = "fgb:theme";
 
@@ -19,8 +21,38 @@ const state = {
   data: null,
   industry: "",
   role: "",
-  applied: new Set(store.get(APPLIED_KEY, [])),
+  // Job id -> what you applied to and when. Details are saved with the mark so the
+  // list survives after the job drops out of the daily feed.
+  applications: store.get(APPLICATIONS_KEY, {}),
 };
+
+function markApplied(job, on) {
+  if (on) {
+    state.applications[job.id] = {
+      company: job.company, title: job.title, url: job.url, domain: job.domain,
+      sponsorship: job.sponsorship, applied_at: Math.floor(Date.now() / 1000),
+    };
+  } else {
+    delete state.applications[job.id];
+  }
+  store.set(APPLICATIONS_KEY, state.applications);
+}
+
+// Marks saved before the applications list existed only had ids; fill in what we can.
+function migrateOldMarks() {
+  const old = store.get(APPLIED_KEY, null);
+  if (!Array.isArray(old)) return;
+  const byId = new Map(state.data.jobs.map((j) => [j.id, j]));
+  for (const id of old) {
+    if (state.applications[id]) continue;
+    const job = byId.get(id);
+    state.applications[id] = job
+      ? { company: job.company, title: job.title, url: job.url, domain: job.domain, sponsorship: job.sponsorship, applied_at: null }
+      : { company: "", title: id.replace(/-/g, " "), url: "", domain: null, applied_at: null };
+  }
+  store.set(APPLICATIONS_KEY, state.applications);
+  try { localStorage.removeItem(APPLIED_KEY); } catch { /* nothing to clean up */ }
+}
 
 function timeAgo(epochSeconds) {
   const mins = Math.max(0, Math.round((Date.now() / 1000 - epochSeconds) / 60));
@@ -116,13 +148,13 @@ function renderRow(job) {
   apply.setAttribute("aria-label", `Apply to ${job.title} at ${job.company}`);
 
   const box = node.querySelector(".applied input");
-  box.checked = state.applied.has(job.id);
+  box.checked = Boolean(state.applications[job.id]);
   box.setAttribute("aria-label", `Mark ${job.title} at ${job.company} as applied`);
   node.classList.toggle("is-applied", box.checked);
   box.addEventListener("change", () => {
-    if (box.checked) state.applied.add(job.id); else state.applied.delete(job.id);
-    store.set(APPLIED_KEY, [...state.applied]);
+    markApplied(job, box.checked);
     node.classList.toggle("is-applied", box.checked);
+    renderApplications();
     if ($("hideApplied").checked) render();
   });
   return node;
@@ -142,7 +174,7 @@ function filtered({ ignore = "" } = {}) {
     (posting === "all" || (posting === "repost") === Boolean(j.reposted)) &&
     (ignore === "role" || !state.role || j.role === state.role) &&
     (!$("remote").checked || j.remote) &&
-    (!$("hideApplied").checked || !state.applied.has(j.id)) &&
+    (!$("hideApplied").checked || !state.applications[j.id]) &&
     (ignore === "industry" || !state.industry || j.industry === state.industry) &&
     (!q || `${j.company} ${j.title} ${j.locations.join(" ")}`.toLowerCase().includes(q))
   );
@@ -227,7 +259,72 @@ function renderSegmentCounts() {
   $("post-repost").textContent = reposts;
 }
 
+function formatDay(epochSeconds) {
+  return new Date(epochSeconds * 1000).toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+// Everything you've marked applied, newest first. Filters don't apply here.
+function renderApplications() {
+  const live = new Map(state.data.jobs.map((j) => [j.id, j]));
+  const entries = Object.entries(state.applications)
+    .sort(([, a], [, b]) => (b.applied_at || 0) - (a.applied_at || 0));
+  $("apps-count").textContent = entries.length;
+  const list = $("apps-list");
+  list.replaceChildren();
+  if (!entries.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = "Nothing yet. Tick Applied on a job and it will be listed here, even after it leaves the board.";
+    list.append(p);
+    return;
+  }
+  const ol = document.createElement("ol");
+  ol.className = "apps";
+  for (const [id, app] of entries) {
+    const li = document.createElement("li");
+    li.className = "app";
+    const logo = document.createElement("div");
+    logo.className = "logo";
+    logo.setAttribute("aria-hidden", "true");
+    renderLogo(logo, { company: app.company || app.title, domain: app.domain });
+
+    const main = document.createElement("div");
+    main.className = "app-main";
+    const title = document.createElement(app.url ? "a" : "span");
+    title.className = "app-title";
+    title.textContent = app.title;
+    if (app.url) { title.href = app.url; title.target = "_blank"; title.rel = "noopener"; }
+    const sub = document.createElement("p");
+    sub.className = "app-sub";
+    const bits = [];
+    if (app.company) bits.push(app.company);
+    bits.push(app.applied_at ? `Applied ${formatDay(app.applied_at)}` : "Applied");
+    if (app.sponsorship === "yes") bits.push("Sponsors visas");
+    sub.textContent = bits.join(" · ");
+    const status = document.createElement("span");
+    status.className = live.has(id) ? "app-status open" : "app-status";
+    status.textContent = live.has(id) ? "On the board" : "Off the board";
+    sub.append(" ", status);
+    main.append(title, sub);
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "app-remove";
+    remove.textContent = "Remove";
+    remove.setAttribute("aria-label", `Remove ${app.title}${app.company ? ` at ${app.company}` : ""} from your applications`);
+    remove.addEventListener("click", () => {
+      delete state.applications[id];
+      store.set(APPLICATIONS_KEY, state.applications);
+      render();
+    });
+    li.append(logo, main, remove);
+    ol.append(li);
+  }
+  list.append(ol);
+}
+
 function render() {
+  renderApplications();
   renderSegmentCounts();
   renderChips();
   const choice = sponsorshipFilter();
@@ -292,6 +389,7 @@ async function main() {
     $("updated").textContent = "Couldn't load today's jobs. Run python scripts/fetch_jobs.py, then reload.";
     return;
   }
+  migrateOldMarks();
   $("updated").textContent = `Updated ${timeAgo(state.data.generated_at)}. New jobs arrive every morning.`;
 
   for (const id of ["q", "window", "remote", "hideApplied"]) {
@@ -300,6 +398,11 @@ async function main() {
   for (const radio of document.querySelectorAll('input[name="sponsorship"], input[name="posting"]')) {
     radio.addEventListener("change", render);
   }
+  const appsBoard = $("apps-board");
+  appsBoard.open = store.get(APPS_OPEN_KEY, false);
+  appsBoard.addEventListener("toggle", () => store.set(APPS_OPEN_KEY, appsBoard.open));
+  $("apps-link").addEventListener("click", () => { appsBoard.open = true; });
+
   const otherBoard = $("other-board");
   otherBoard.open = store.get(OTHER_OPEN_KEY, false);
   otherBoard.addEventListener("toggle", () => {
