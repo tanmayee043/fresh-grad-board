@@ -13,7 +13,7 @@ from pathlib import Path
 
 from big_tech import from_big_tech
 from jobright import from_jobright
-from sponsors import YEAR_START, build_sponsors, note_posting, note_sponsor
+from sponsors import YEAR_START, build_past_sponsors, build_sponsors, note_posting, note_sponsor
 from workday import from_workday
 from net import GONE, get, iso_to_epoch, job, log
 from common import (
@@ -353,6 +353,7 @@ def main():
     reposts = sum(j["reposted"] for j in jobs)
     log(f"Wrote {len(jobs)} jobs ({yes} sponsor visas, {reposts} reposts) to {OUT}")
     build_sponsors(all_listings, lookups, OUT.parent / "sponsors.json")
+    build_past_sponsors(all_listings, lookups, OUT.parent / "past_sponsors.json")
 
 
 if __name__ == "__main__":

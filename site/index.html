@@ -21,8 +21,9 @@
       <p class="lede">US new-grad computer science jobs posted in the last 3 days. Visa-sponsoring roles come first.</p>
       <p class="updated" id="updated" aria-live="polite">Loading jobs…</p>
       <p class="head-links">
-        <a class="apps-link" id="apps-link" href="#apps-board">My applications</a>
-        <a class="apps-link" id="sponsors-link" href="#sponsors-board">Visa sponsors this year</a>
+        <button type="button" class="apps-link" data-open="apps-drawer"><span class="lbl">My applications</span><span class="n" id="apps-count-quick">0</span></button>
+        <button type="button" class="apps-link" data-open="sponsors-drawer"><span class="lbl">Visa sponsors this year</span><span class="n" id="sponsor-count-quick">0</span></button>
+        <button type="button" class="apps-link" data-open="past-drawer"><span class="lbl">Top past sponsors</span><span class="n" id="past-count-quick">0</span></button>
       </p>
     </div>
   </header>
@@ -84,34 +85,6 @@
       </aside>
 
       <div class="results">
-        <details class="board other apps-board" id="apps-board">
-          <summary>
-            <h2>My applications <span class="count" id="apps-count">0</span></h2>
-            <p>Every job you've marked applied, newest first. Saved in this browser.</p>
-          </summary>
-          <div id="apps-list"></div>
-        </details>
-
-        <details class="board other apps-board sponsors-board" id="sponsors-board">
-          <summary>
-            <h2><span id="sponsors-title">Visa sponsors this year</span> <span class="count" id="sponsors-count">0</span></h2>
-            <p>Companies whose own job postings this year say they sponsor work visas. The list grows as new postings come in.</p>
-          </summary>
-          <div class="sponsor-tools">
-            <fieldset class="segmented">
-              <legend class="visually-hidden">Company type</legend>
-              <div class="segments" id="sponsor-cats"></div>
-            </fieldset>
-            <label class="search">
-              <span class="visually-hidden">Search sponsoring companies</span>
-              <input type="search" id="sponsor-q" placeholder="Search companies" autocomplete="off">
-            </label>
-            <label class="check"><input type="checkbox" id="hide-checked"> Hide checked</label>
-            <span class="checked-count" id="checked-count" aria-live="polite"></span>
-          </div>
-          <div id="sponsor-dir"></div>
-        </details>
-
         <section class="board sponsor" id="sponsor-board" aria-labelledby="sponsor-title">
           <header class="board-head">
             <div class="stamp" aria-hidden="true">
@@ -135,6 +108,67 @@
         </details>
       </div>
     </div>
+
+    <dialog class="drawer" id="apps-drawer" aria-labelledby="apps-title">
+      <header class="drawer-head">
+        <div>
+          <h2 id="apps-title">My applications <span class="count" id="apps-count">0</span></h2>
+          <p>Every job you've marked applied, newest first. Saved in this browser.</p>
+        </div>
+        <button type="button" class="drawer-close" data-close aria-label="Close my applications">×</button>
+      </header>
+      <div class="drawer-body" id="apps-list"></div>
+    </dialog>
+
+    <dialog class="drawer" id="sponsors-drawer" aria-labelledby="sponsors-heading">
+      <header class="drawer-head">
+        <div>
+          <h2 id="sponsors-heading"><span class="sponsor-label">Visa sponsors this year</span> <span class="count" id="sponsor-count">0</span></h2>
+          <p>Companies whose own job postings this year say they sponsor work visas. The list grows as new postings come in.</p>
+        </div>
+        <button type="button" class="drawer-close" data-close aria-label="Close visa sponsors">×</button>
+      </header>
+      <div class="drawer-body">
+          <div class="sponsor-tools">
+            <fieldset class="segmented">
+              <legend class="visually-hidden">Company type</legend>
+              <div class="segments" id="sponsor-cats"></div>
+            </fieldset>
+            <label class="search">
+              <span class="visually-hidden">Search sponsoring companies</span>
+              <input type="search" id="sponsor-q" placeholder="Search companies" autocomplete="off">
+            </label>
+            <label class="check"><input type="checkbox" id="sponsor-hide"> Hide checked</label>
+            <span class="checked-count" id="sponsor-checked" aria-live="polite"></span>
+          </div>
+          <div id="sponsor-dir"></div>
+      </div>
+    </dialog>
+
+    <dialog class="drawer" id="past-drawer" aria-labelledby="past-heading">
+      <header class="drawer-head">
+        <div>
+          <h2 id="past-heading"><span class="past-label">Top past sponsors</span> <span class="count" id="past-count">0</span></h2>
+          <p>Employers with 50 or more approved H-1B petitions in the latest year of government data, most first. A company's policy can change, so check its postings.</p>
+        </div>
+        <button type="button" class="drawer-close" data-close aria-label="Close top past sponsors">×</button>
+      </header>
+      <div class="drawer-body">
+        <div class="sponsor-tools">
+          <fieldset class="segmented">
+            <legend class="visually-hidden">Company type</legend>
+            <div class="segments" id="past-cats"></div>
+          </fieldset>
+          <label class="search">
+            <span class="visually-hidden">Search past sponsors</span>
+            <input type="search" id="past-q" placeholder="Search companies" autocomplete="off">
+          </label>
+          <label class="check"><input type="checkbox" id="past-hide"> Hide checked</label>
+          <span class="checked-count" id="past-checked" aria-live="polite"></span>
+        </div>
+        <div id="past-dir"></div>
+      </div>
+    </dialog>
   </main>
 
   <footer class="wrap foot">

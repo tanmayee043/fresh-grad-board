@@ -2,11 +2,8 @@
 
 const APPLIED_KEY = "fgb:applied"; // older format: a list of job ids
 const APPLICATIONS_KEY = "fgb:applications";
-const APPS_OPEN_KEY = "fgb:apps-open";
 const HIDDEN_KEY = "fgb:hidden-companies";
 const CHECKED_KEY = "fgb:sponsors-checked";
-const SPONSORS_OPEN_KEY = "fgb:sponsors-open";
-const SPONSOR_CATEGORIES = ["Big Tech", "Small Tech", "Universities", "Other"];
 const SPONSOR_PAGE = 50;
 const OTHER_OPEN_KEY = "fgb:other-open";
 const THEME_KEY = "fgb:theme";
@@ -30,9 +27,6 @@ const state = {
   // list survives after the job drops out of the daily feed.
   applications: store.get(APPLICATIONS_KEY, {}),
   hiddenCompanies: store.get(HIDDEN_KEY, []),
-  sponsors: null,
-  sponsorCategory: "all",
-  sponsorShown: SPONSOR_PAGE,
   checked: store.get(CHECKED_KEY, {}),
 };
 
@@ -296,6 +290,7 @@ function renderApplications() {
   const entries = Object.entries(state.applications)
     .sort(([, a], [, b]) => (b.applied_at || 0) - (a.applied_at || 0));
   $("apps-count").textContent = entries.length;
+  $("apps-count-quick").textContent = entries.length;
   const list = $("apps-list");
   list.replaceChildren();
   if (!entries.length) {
@@ -454,22 +449,53 @@ function trackFilterBarHeight() {
   update();
 }
 
-// ---------------------------------------------------------------- sponsor list
+// ---------------------------------------------------------------- company lists
+// Two lists share this code: companies whose postings this year say they sponsor,
+// and companies with many approved H-1B petitions in the latest government data.
+// A checkmark is per company, so it shows in both lists.
 
-function renderSponsorCategories() {
-  const companies = state.sponsors.companies;
-  const nav = $("sponsor-cats");
+const DIRECTORY_CATEGORIES = ["Big Tech", "Small Tech", "IT Services", "Universities", "Other"];
+
+const DIRECTORIES = {
+  current: {
+    file: "data/sponsors.json", ids: "sponsor", alwaysShow: ["Big Tech", "Small Tech", "Universities"],
+    title: (d) => `Visa sponsors in ${d.year}`,
+    details(c) {
+      const many = c.count >= 20 ? "20+" : c.count;
+      return `${c.industry} · ${many} ${c.count === 1 ? "posting this year says" : "postings this year say"} they sponsor · latest ${formatDay(c.last_posted)}: `;
+    },
+    latest: (c) => c.postings[0],
+    empty: (cat) => cat === "Universities"
+      ? "No university postings this year have said they sponsor yet. They will show up here as they are found."
+      : "No companies match.",
+  },
+  past: {
+    file: "data/past_sponsors.json", ids: "past", alwaysShow: ["Big Tech", "Small Tech", "Universities"],
+    title: (d) => `Top H-1B sponsors, FY${d.fiscal_year}`,
+    details: (c) => `${c.industry} · ${c.approvals.toLocaleString()} H-1B approvals` +
+      (c.new_hires ? `, ${c.new_hires.toLocaleString()} new hires` : "") + (c.place ? ` · ${c.place}` : ""),
+    latest: () => null,
+    empty: () => "No companies match.",
+  },
+};
+
+const dirEl = (dir, part) => $(`${dir.ids}-${part}`);
+
+function renderDirectoryTabs(dir) {
+  const companies = dir.data.companies;
+  const nav = dirEl(dir, "cats");
   nav.replaceChildren();
   const options = [["all", "All", companies.length],
-    ...SPONSOR_CATEGORIES.map((c) => [c, c, companies.filter((x) => x.category === c).length])];
+    ...DIRECTORY_CATEGORIES.map((c) => [c, c, companies.filter((x) => x.category === c).length])
+      .filter(([c, , n]) => n || dir.alwaysShow.includes(c))];
   for (const [value, label, n] of options) {
     const l = document.createElement("label");
     const input = Object.assign(document.createElement("input"),
-      { type: "radio", name: "sponsor-cat", value, checked: state.sponsorCategory === value });
+      { type: "radio", name: `${dir.ids}-cat`, value, checked: dir.category === value });
     input.addEventListener("change", () => {
-      state.sponsorCategory = value;
-      state.sponsorShown = SPONSOR_PAGE;
-      renderSponsorList();
+      dir.category = value;
+      dir.shown = SPONSOR_PAGE;
+      renderDirectory(dir);
     });
     const span = document.createElement("span");
     const b = document.createElement("b");
@@ -480,7 +506,12 @@ function renderSponsorCategories() {
   }
 }
 
-function sponsorRow(c) {
+// Where a company's name and button lead: its careers site, or a web search for it.
+function careersLink(c) {
+  return c.careers || `https://duckduckgo.com/?q=${encodeURIComponent(`${c.name} careers`)}`;
+}
+
+function companyRow(dir, c) {
   const li = document.createElement("li");
   li.className = "app sponsor-co";
   li.classList.toggle("is-checked", Boolean(state.checked[c.id]));
@@ -493,8 +524,11 @@ function sponsorRow(c) {
     else delete state.checked[c.id];
     store.set(CHECKED_KEY, state.checked);
     li.classList.toggle("is-checked", box.checked);
-    renderCheckedCount();
-    if ($("hide-checked").checked) renderSponsorList();
+    for (const other of Object.values(DIRECTORIES)) {
+      if (!other.data) continue;
+      if (other === dir) { renderCheckedCount(other); if (dirEl(other, "hide").checked) renderDirectory(other); }
+      else renderDirectory(other);
+    }
   });
 
   const logo = document.createElement("div");
@@ -504,15 +538,13 @@ function sponsorRow(c) {
 
   const main = document.createElement("div");
   main.className = "app-main";
-  const name = document.createElement(c.careers ? "a" : "span");
+  const name = Object.assign(document.createElement("a"), { href: careersLink(c), target: "_blank", rel: "noopener" });
   name.className = "app-title";
   name.textContent = c.name;
-  if (c.careers) { name.href = c.careers; name.target = "_blank"; name.rel = "noopener"; }
   const sub = document.createElement("p");
   sub.className = "app-sub";
-  const latest = c.postings[0];
-  const many = c.count >= 20 ? "20+" : c.count;
-  sub.append(`${c.industry} · ${many} ${c.count === 1 ? "posting this year says" : "postings this year say"} they sponsor · latest ${formatDay(c.last_posted)}: `);
+  sub.append(dir.details(c));
+  const latest = dir.latest(c);
   if (latest) {
     const a = Object.assign(document.createElement("a"), { href: latest.url, target: "_blank", rel: "noopener" });
     a.className = "co-latest";
@@ -527,80 +559,83 @@ function sponsorRow(c) {
     main.append(q);
   }
 
-  const go = document.createElement(c.careers ? "a" : "span");
-  go.className = "apply co-careers";
-  go.textContent = "Careers page";
-  if (c.careers) {
-    go.href = c.careers; go.target = "_blank"; go.rel = "noopener";
-    go.setAttribute("aria-label", `${c.name} careers page`);
-  }
+  const go = Object.assign(document.createElement("a"), { href: careersLink(c), target: "_blank", rel: "noopener" });
+  go.className = c.careers ? "apply co-careers" : "apply co-careers is-search";
+  go.textContent = c.careers ? "Careers page" : "Find careers page";
+  go.setAttribute("aria-label", c.careers ? `${c.name} careers page` : `Search the web for ${c.name} careers`);
   li.append(box, logo, main, go);
   return li;
 }
 
-function renderCheckedCount() {
-  const ids = new Set(state.sponsors.companies.map((c) => c.id));
-  const n = Object.keys(state.checked).filter((id) => ids.has(id)).length;
-  $("checked-count").textContent = n ? `${n} checked` : "";
+function renderCheckedCount(dir) {
+  const n = dir.data.companies.filter((c) => state.checked[c.id]).length;
+  dirEl(dir, "checked").textContent = n ? `${n} checked` : "";
 }
 
-function renderSponsorList() {
-  const q = $("sponsor-q").value.trim().toLowerCase();
-  const hideChecked = $("hide-checked").checked;
-  const list = state.sponsors.companies.filter((c) =>
-    (state.sponsorCategory === "all" || c.category === state.sponsorCategory) &&
+function renderDirectory(dir) {
+  const q = dirEl(dir, "q").value.trim().toLowerCase();
+  const hideChecked = dirEl(dir, "hide").checked;
+  const list = dir.data.companies.filter((c) =>
+    (dir.category === "all" || c.category === dir.category) &&
     (!hideChecked || !state.checked[c.id]) &&
     (!q || `${c.name} ${c.industry}`.toLowerCase().includes(q)));
-  const dir = $("sponsor-dir");
-  dir.replaceChildren();
-  renderCheckedCount();
+  const out = dirEl(dir, "dir");
+  out.replaceChildren();
+  renderCheckedCount(dir);
   if (!list.length) {
-    const p = document.createElement("p");
-    p.className = "empty";
-    p.textContent = state.sponsorCategory === "Universities" && !q
-      ? "No university postings this year have said they sponsor yet. They will show up here as they are found."
-      : "No companies match.";
-    dir.append(p);
+    out.append(Object.assign(document.createElement("p"), { className: "empty", textContent: q ? "No companies match." : dir.empty(dir.category) }));
     return;
   }
   const ol = document.createElement("ol");
   ol.className = "apps";
-  ol.append(...list.slice(0, state.sponsorShown).map(sponsorRow));
-  dir.append(ol);
-  if (list.length > state.sponsorShown) {
+  ol.append(...list.slice(0, dir.shown).map((c) => companyRow(dir, c)));
+  out.append(ol);
+  if (list.length > dir.shown) {
     const more = document.createElement("button");
     more.type = "button";
     more.className = "show-more";
-    more.textContent = `Show more (${list.length - state.sponsorShown} left)`;
-    more.addEventListener("click", () => { state.sponsorShown += SPONSOR_PAGE; renderSponsorList(); });
-    dir.append(more);
+    more.textContent = `Show more (${list.length - dir.shown} left)`;
+    more.addEventListener("click", () => { dir.shown += SPONSOR_PAGE; renderDirectory(dir); });
+    out.append(more);
   }
 }
 
-async function loadSponsors() {
-  const board = $("sponsors-board");
-  board.open = store.get(SPONSORS_OPEN_KEY, false);
-  board.addEventListener("toggle", () => store.set(SPONSORS_OPEN_KEY, board.open));
-  $("sponsors-link").addEventListener("click", () => { board.open = true; });
+async function loadDirectory(dir) {
+  dir.category = "all";
+  dir.shown = SPONSOR_PAGE;
   try {
-    const res = await fetch("data/sponsors.json", { cache: "no-cache" });
+    const res = await fetch(dir.file, { cache: "no-cache" });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.sponsors = await res.json();
+    dir.data = await res.json();
   } catch {
-    $("sponsor-dir").replaceChildren(Object.assign(document.createElement("p"),
-      { className: "empty", textContent: "The sponsor list is not available yet. It is built with each daily update." }));
+    dirEl(dir, "dir").replaceChildren(Object.assign(document.createElement("p"),
+      { className: "empty", textContent: "This list is not available yet. It is built with each daily update." }));
     return;
   }
-  $("sponsors-title").textContent = `Visa sponsors in ${state.sponsors.year}`;
-  $("sponsors-count").textContent = state.sponsors.companies.length;
-  $("sponsor-q").addEventListener("input", () => { state.sponsorShown = SPONSOR_PAGE; renderSponsorList(); });
-  $("hide-checked").addEventListener("change", renderSponsorList);
-  renderSponsorCategories();
-  renderSponsorList();
+  for (const el of document.querySelectorAll(`.${dir.ids}-label`)) el.textContent = dir.title(dir.data);
+  dirEl(dir, "count").textContent = dir.data.companies.length;
+  dirEl(dir, "count-quick").textContent = dir.data.companies.length;
+  dirEl(dir, "q").addEventListener("input", () => { dir.shown = SPONSOR_PAGE; renderDirectory(dir); });
+  dirEl(dir, "hide").addEventListener("change", () => renderDirectory(dir));
+  renderDirectoryTabs(dir);
+  renderDirectory(dir);
+}
+
+// Applications and the sponsor list open as panels that slide in from the right.
+function setupDrawers() {
+  for (const button of document.querySelectorAll("[data-open]")) {
+    button.addEventListener("click", () => $(button.dataset.open).showModal());
+  }
+  for (const dialog of document.querySelectorAll("dialog.drawer")) {
+    dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
+    // A click on the dimmed backdrop lands on the dialog itself.
+    dialog.addEventListener("click", (event) => { if (event.target === dialog) dialog.close(); });
+  }
 }
 
 async function main() {
   setupThemeToggle();
+  setupDrawers();
   trackFilterBarHeight();
   try {
     const res = await fetch("data/jobs.json", { cache: "no-cache" });
@@ -620,10 +655,6 @@ async function main() {
   for (const radio of document.querySelectorAll('input[name="sponsorship"], input[name="posting"]')) {
     radio.addEventListener("change", render);
   }
-  const appsBoard = $("apps-board");
-  appsBoard.open = store.get(APPS_OPEN_KEY, false);
-  appsBoard.addEventListener("toggle", () => store.set(APPS_OPEN_KEY, appsBoard.open));
-  $("apps-link").addEventListener("click", () => { appsBoard.open = true; });
 
   const otherBoard = $("other-board");
   otherBoard.open = store.get(OTHER_OPEN_KEY, false);
@@ -633,7 +664,7 @@ async function main() {
 
   render();
   document.querySelector(".stamp").classList.add("inked");
-  loadSponsors();
+  for (const dir of Object.values(DIRECTORIES)) loadDirectory(dir);
 }
 
 main();
