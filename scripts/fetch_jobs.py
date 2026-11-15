@@ -13,6 +13,7 @@ from pathlib import Path
 
 from big_tech import from_big_tech
 from jobright import from_jobright
+from sponsors import YEAR_START, build_sponsors, note_posting, note_sponsor
 from workday import from_workday
 from net import GONE, get, iso_to_epoch, job, log
 from common import (
@@ -43,8 +44,13 @@ GENERIC_TAILS = {
 
 # ---------------------------------------------------------------- sources
 
+# Every listing read today, open or closed: the sponsor directory finds careers sites in it.
+all_listings = []
+
+
 def from_simplify(since):
     listings = get(SIMPLIFY_URL, timeout=90) or []
+    all_listings.extend(listings)
     out = []
     for x in listings:
         remember(x.get("company_name"), x.get("title"), x.get("date_posted"))
@@ -62,11 +68,12 @@ def from_greenhouse(token, company, since):
     for x in data.get("jobs", []):
         posted = iso_to_epoch(x.get("first_published") or x.get("updated_at"))
         remember(company, x["title"], posted)
+        locs = split_locations((x.get("location") or {}).get("name", ""))
+        text = html_to_text(x.get("content"))
+        note_posting(company, x["title"], x["absolute_url"], posted, text, locs)
         if not posted or posted < since:
             continue
-        locs = split_locations((x.get("location") or {}).get("name", ""))
-        out.append(job(company, x["title"], x["absolute_url"], locs,
-                       posted, "Greenhouse", html_to_text(x.get("content"))))
+        out.append(job(company, x["title"], x["absolute_url"], locs, posted, "Greenhouse", text))
     return out
 
 
@@ -76,7 +83,7 @@ def from_lever(token, company, since):
     for x in data:
         posted = (x.get("createdAt") or 0) // 1000
         remember(company, x["text"], posted)
-        if posted < since:
+        if posted < since and posted < YEAR_START:
             continue
         cats = x.get("categories") or {}
         locs = cats.get("allLocations") or [cats.get("location", "")]
@@ -84,7 +91,9 @@ def from_lever(token, company, since):
             locs = [f"{loc}, US" for loc in locs]
         lists = " ".join(f"{l.get('text', '')} {html_to_text(l.get('content'))}" for l in x.get("lists", []))
         text = " ".join([x.get("descriptionPlain", ""), lists, x.get("additionalPlain", "")])
-        out.append(job(company, x["text"], x["hostedUrl"], locs, posted, "Lever", text))
+        note_posting(company, x["text"], x["hostedUrl"], posted, text, locs)
+        if posted >= since:
+            out.append(job(company, x["text"], x["hostedUrl"], locs, posted, "Lever", text))
     return out
 
 
@@ -94,14 +103,16 @@ def from_ashby(token, company, since):
     for x in data.get("jobs", []):
         posted = iso_to_epoch(x.get("publishedAt"))
         remember(company, x["title"], posted)
-        if not x.get("isListed", True) or not posted or posted < since:
+        if not x.get("isListed", True) or not posted or (posted < since and posted < YEAR_START):
             continue
         locs = [x.get("location", "")] + [s.get("location", "") for s in x.get("secondaryLocations") or []]
         country = ((x.get("address") or {}).get("postalAddress") or {}).get("addressCountry", "")
         if country in ("United States", "USA", "US") and not us_locations(locs):
             locs = [f"{loc}, US" for loc in locs]
-        out.append(job(company, x["title"], x["jobUrl"], locs, posted, "Ashby",
-                       x.get("descriptionPlain") or html_to_text(x.get("descriptionHtml"))))
+        text = x.get("descriptionPlain") or html_to_text(x.get("descriptionHtml"))
+        note_posting(company, x["title"], x["jobUrl"], posted, text, locs)
+        if posted >= since:
+            out.append(job(company, x["title"], x["jobUrl"], locs, posted, "Ashby", text))
     return out
 
 
@@ -318,6 +329,8 @@ def main():
 
     for j in jobs:
         enrich(j, lookups)
+        if j["basis"] == "posting" and j["sponsorship"] == "yes":
+            note_sponsor(j["company"], j["title"], j["url"], j["posted_at"], j["evidence"])
         j["remote"] = any("remote" in loc.lower() for loc in j["locations"])
         first = first_listed(j["company"], j["title"])
         j["reposted"] = bool(first and first < j["posted_at"] - REPOST_GAP)
@@ -339,6 +352,7 @@ def main():
     yes = sum(j["sponsorship"] == "yes" for j in jobs)
     reposts = sum(j["reposted"] for j in jobs)
     log(f"Wrote {len(jobs)} jobs ({yes} sponsor visas, {reposts} reposts) to {OUT}")
+    build_sponsors(all_listings, lookups, OUT.parent / "sponsors.json")
 
 
 if __name__ == "__main__":

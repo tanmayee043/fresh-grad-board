@@ -250,7 +250,7 @@ def html_to_text(raw):
 _NO_SPONSOR = re.compile(
     r"(not|unable to|cannot|can't|can not|won't|will not|does not|do not|doesn't|don't|"
     r"is not able to|are not able to|not able to|no longer)\s+(?:[\w.]+\s+){0,4}?"
-    r"(sponsor|provide sponsorship|offer sponsorship|support (?:a )?visa)\w*"
+    r"(sponsor|provide sponsorship|offer sponsorship|support (?:[\w-]+ ){0,3}?(?:visa|sponsorship))\w*"
     r"|without (?:the )?(?:need (?:for|of) )?(?:current or future |future |any )?"
     r"(?:employer |visa |immigration )?sponsorship"
     r"|sponsorship (?:is |will )?(?:not|n't) (?:be )?(?:available|offered|provided|considered)"
@@ -266,8 +266,11 @@ _YES_SPONSOR = re.compile(
     r"(?:will|can|may|able to|happy to|open to|do|does)\s+(?:\w+\s+){0,3}?sponsor(?:ing|ship)?\b"
     r"|(?:visa|h-?1b|immigration) sponsorship (?:is |will be )?(?:available|offered|provided|supported)"
     r"|sponsorship (?:is )?(?:available|offered|provided)"
-    r"|(?:offers?|provides?|including) (?:visa |h-?1b |immigration )?sponsorship"
-    r"|sponsor (?:work )?visas",
+    r"|(?:offers?|provides?) (?:visa |h-?1b |immigration )?sponsorship"
+    r"|including (?:visa|h-?1b|immigration) sponsorship"
+    r"|sponsor (?:work )?visas"
+    r"|(?:visa|immigration|h-?1b) sponsorship (?:where|when|if|as) (?:necessary|needed|applicable|required)"
+    r"|relocation (?:package |assistance |support )?(?:and|&) (?:visa|immigration) (?:sponsorship|support)",
     re.I,
 )
 # Sentences that only ask the applicant a question about sponsorship say nothing.

@@ -47,10 +47,16 @@ def _rows(repo):
         yield company, domain, title, url.split("?")[0], cells[2], cells[3], cells[4]
 
 
+# Company -> website, from every row read (the sponsor directory uses it for logos).
+company_domains = {}
+
+
 def from_jobright(since):
     out, seen = [], set()
     for repo in LISTS:
         for company, domain, title, url, location, work_model, date in _rows(repo):
+            if domain:
+                company_domains.setdefault(company, domain)
             posted = _row_date(date)
             remember(company, title, posted)
             if not posted or posted < since or url in seen or not new_grad_title(title):

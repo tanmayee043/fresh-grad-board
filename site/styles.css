@@ -279,6 +279,25 @@ a { color: inherit; }
   display: inline-block; margin-top: 8px; font-size: 0.875rem; font-weight: 600;
   color: var(--applied); text-underline-offset: 3px;
 }
+.head-links { display: flex; flex-wrap: wrap; gap: 4px 20px; margin: 8px 0 0; }
+.head-links .apps-link { margin-top: 0; }
+.apps-board.sponsors-board { margin-top: 16px; }
+.sponsor-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin: 4px 0 12px; }
+.sponsor-tools .segmented { flex: 0 1 auto; }
+.sponsor-tools .search { flex: 1 1 200px; }
+.checked-count { font-size: 0.8125rem; color: var(--muted); font-variant-numeric: tabular-nums; }
+.app.sponsor-co { grid-template-columns: auto 36px 1fr auto; align-items: start; }
+.sponsor-co .co-check { width: 20px; height: 20px; margin-top: 8px; accent-color: var(--applied); }
+.co-latest { color: var(--muted); text-underline-offset: 2px; }
+.co-quote { display: block; margin-top: 4px; font-size: 0.8125rem; color: var(--accent); }
+.co-careers { min-height: 32px; padding: 0 14px; font-size: 0.8125rem; white-space: nowrap; }
+.sponsor-co.is-checked .app-title { color: var(--muted); }
+.sponsor-co.is-checked .logo { opacity: 0.5; }
+.sponsor-co.is-checked .co-careers { background: transparent; color: var(--muted); border: 1px solid var(--line); }
+.show-more {
+  display: block; margin: 12px auto 0; min-height: 36px; padding: 0 18px; font: inherit; font-size: 0.875rem;
+  color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 999px; cursor: pointer;
+}
 .apps-board { margin-top: 0; scroll-margin-top: calc(var(--filters-h, 0px) + 16px); }
 .apps-board summary h2 { color: var(--applied); }
 .apps { list-style: none; margin: 0; padding: 0; }
@@ -308,6 +327,8 @@ a.app-title:hover { text-decoration: underline; }
 .foot p { max-width: 72ch; }
 
 @media (max-width: 640px) {
+  .app.sponsor-co { grid-template-columns: auto 36px 1fr; }
+  .sponsor-co .co-careers { grid-column: 3; justify-self: start; }
   .masthead { padding-top: 60px; }
   .theme-toggle { top: -46px; }
   .filters { position: static; }

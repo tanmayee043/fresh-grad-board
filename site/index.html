@@ -20,7 +20,10 @@
       <h1>Fresh Grad Board</h1>
       <p class="lede">US new-grad computer science jobs posted in the last 3 days. Visa-sponsoring roles come first.</p>
       <p class="updated" id="updated" aria-live="polite">Loading jobs…</p>
-      <a class="apps-link" id="apps-link" href="#apps-board">My applications</a>
+      <p class="head-links">
+        <a class="apps-link" id="apps-link" href="#apps-board">My applications</a>
+        <a class="apps-link" id="sponsors-link" href="#sponsors-board">Visa sponsors this year</a>
+      </p>
     </div>
   </header>
 
@@ -87,6 +90,26 @@
             <p>Every job you've marked applied, newest first. Saved in this browser.</p>
           </summary>
           <div id="apps-list"></div>
+        </details>
+
+        <details class="board other apps-board sponsors-board" id="sponsors-board">
+          <summary>
+            <h2><span id="sponsors-title">Visa sponsors this year</span> <span class="count" id="sponsors-count">0</span></h2>
+            <p>Companies whose own job postings this year say they sponsor work visas. The list grows as new postings come in.</p>
+          </summary>
+          <div class="sponsor-tools">
+            <fieldset class="segmented">
+              <legend class="visually-hidden">Company type</legend>
+              <div class="segments" id="sponsor-cats"></div>
+            </fieldset>
+            <label class="search">
+              <span class="visually-hidden">Search sponsoring companies</span>
+              <input type="search" id="sponsor-q" placeholder="Search companies" autocomplete="off">
+            </label>
+            <label class="check"><input type="checkbox" id="hide-checked"> Hide checked</label>
+            <span class="checked-count" id="checked-count" aria-live="polite"></span>
+          </div>
+          <div id="sponsor-dir"></div>
         </details>
 
         <section class="board sponsor" id="sponsor-board" aria-labelledby="sponsor-title">

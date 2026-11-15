@@ -4,6 +4,10 @@ const APPLIED_KEY = "fgb:applied"; // older format: a list of job ids
 const APPLICATIONS_KEY = "fgb:applications";
 const APPS_OPEN_KEY = "fgb:apps-open";
 const HIDDEN_KEY = "fgb:hidden-companies";
+const CHECKED_KEY = "fgb:sponsors-checked";
+const SPONSORS_OPEN_KEY = "fgb:sponsors-open";
+const SPONSOR_CATEGORIES = ["Big Tech", "Small Tech", "Universities", "Other"];
+const SPONSOR_PAGE = 50;
 const OTHER_OPEN_KEY = "fgb:other-open";
 const THEME_KEY = "fgb:theme";
 
@@ -26,6 +30,10 @@ const state = {
   // list survives after the job drops out of the daily feed.
   applications: store.get(APPLICATIONS_KEY, {}),
   hiddenCompanies: store.get(HIDDEN_KEY, []),
+  sponsors: null,
+  sponsorCategory: "all",
+  sponsorShown: SPONSOR_PAGE,
+  checked: store.get(CHECKED_KEY, {}),
 };
 
 // "Acme, Inc." and "acme inc" are the same company; legal suffixes don't count.
@@ -446,6 +454,151 @@ function trackFilterBarHeight() {
   update();
 }
 
+// ---------------------------------------------------------------- sponsor list
+
+function renderSponsorCategories() {
+  const companies = state.sponsors.companies;
+  const nav = $("sponsor-cats");
+  nav.replaceChildren();
+  const options = [["all", "All", companies.length],
+    ...SPONSOR_CATEGORIES.map((c) => [c, c, companies.filter((x) => x.category === c).length])];
+  for (const [value, label, n] of options) {
+    const l = document.createElement("label");
+    const input = Object.assign(document.createElement("input"),
+      { type: "radio", name: "sponsor-cat", value, checked: state.sponsorCategory === value });
+    input.addEventListener("change", () => {
+      state.sponsorCategory = value;
+      state.sponsorShown = SPONSOR_PAGE;
+      renderSponsorList();
+    });
+    const span = document.createElement("span");
+    const b = document.createElement("b");
+    b.textContent = n;
+    span.append(`${label} `, b);
+    l.append(input, span);
+    nav.append(l);
+  }
+}
+
+function sponsorRow(c) {
+  const li = document.createElement("li");
+  li.className = "app sponsor-co";
+  li.classList.toggle("is-checked", Boolean(state.checked[c.id]));
+
+  const box = Object.assign(document.createElement("input"), { type: "checkbox", checked: Boolean(state.checked[c.id]) });
+  box.className = "co-check";
+  box.setAttribute("aria-label", `Mark ${c.name} as checked`);
+  box.addEventListener("change", () => {
+    if (box.checked) state.checked[c.id] = Math.floor(Date.now() / 1000);
+    else delete state.checked[c.id];
+    store.set(CHECKED_KEY, state.checked);
+    li.classList.toggle("is-checked", box.checked);
+    renderCheckedCount();
+    if ($("hide-checked").checked) renderSponsorList();
+  });
+
+  const logo = document.createElement("div");
+  logo.className = "logo";
+  logo.setAttribute("aria-hidden", "true");
+  renderLogo(logo, { company: c.name, domain: c.domain });
+
+  const main = document.createElement("div");
+  main.className = "app-main";
+  const name = document.createElement(c.careers ? "a" : "span");
+  name.className = "app-title";
+  name.textContent = c.name;
+  if (c.careers) { name.href = c.careers; name.target = "_blank"; name.rel = "noopener"; }
+  const sub = document.createElement("p");
+  sub.className = "app-sub";
+  const latest = c.postings[0];
+  const many = c.count >= 20 ? "20+" : c.count;
+  sub.append(`${c.industry} · ${many} ${c.count === 1 ? "posting this year says" : "postings this year say"} they sponsor · latest ${formatDay(c.last_posted)}: `);
+  if (latest) {
+    const a = Object.assign(document.createElement("a"), { href: latest.url, target: "_blank", rel: "noopener" });
+    a.className = "co-latest";
+    a.textContent = latest.title;
+    sub.append(a);
+  }
+  main.append(name, sub);
+  if (latest && latest.evidence) {
+    const q = document.createElement("q");
+    q.className = "co-quote";
+    q.textContent = latest.evidence;
+    main.append(q);
+  }
+
+  const go = document.createElement(c.careers ? "a" : "span");
+  go.className = "apply co-careers";
+  go.textContent = "Careers page";
+  if (c.careers) {
+    go.href = c.careers; go.target = "_blank"; go.rel = "noopener";
+    go.setAttribute("aria-label", `${c.name} careers page`);
+  }
+  li.append(box, logo, main, go);
+  return li;
+}
+
+function renderCheckedCount() {
+  const ids = new Set(state.sponsors.companies.map((c) => c.id));
+  const n = Object.keys(state.checked).filter((id) => ids.has(id)).length;
+  $("checked-count").textContent = n ? `${n} checked` : "";
+}
+
+function renderSponsorList() {
+  const q = $("sponsor-q").value.trim().toLowerCase();
+  const hideChecked = $("hide-checked").checked;
+  const list = state.sponsors.companies.filter((c) =>
+    (state.sponsorCategory === "all" || c.category === state.sponsorCategory) &&
+    (!hideChecked || !state.checked[c.id]) &&
+    (!q || `${c.name} ${c.industry}`.toLowerCase().includes(q)));
+  const dir = $("sponsor-dir");
+  dir.replaceChildren();
+  renderCheckedCount();
+  if (!list.length) {
+    const p = document.createElement("p");
+    p.className = "empty";
+    p.textContent = state.sponsorCategory === "Universities" && !q
+      ? "No university postings this year have said they sponsor yet. They will show up here as they are found."
+      : "No companies match.";
+    dir.append(p);
+    return;
+  }
+  const ol = document.createElement("ol");
+  ol.className = "apps";
+  ol.append(...list.slice(0, state.sponsorShown).map(sponsorRow));
+  dir.append(ol);
+  if (list.length > state.sponsorShown) {
+    const more = document.createElement("button");
+    more.type = "button";
+    more.className = "show-more";
+    more.textContent = `Show more (${list.length - state.sponsorShown} left)`;
+    more.addEventListener("click", () => { state.sponsorShown += SPONSOR_PAGE; renderSponsorList(); });
+    dir.append(more);
+  }
+}
+
+async function loadSponsors() {
+  const board = $("sponsors-board");
+  board.open = store.get(SPONSORS_OPEN_KEY, false);
+  board.addEventListener("toggle", () => store.set(SPONSORS_OPEN_KEY, board.open));
+  $("sponsors-link").addEventListener("click", () => { board.open = true; });
+  try {
+    const res = await fetch("data/sponsors.json", { cache: "no-cache" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    state.sponsors = await res.json();
+  } catch {
+    $("sponsor-dir").replaceChildren(Object.assign(document.createElement("p"),
+      { className: "empty", textContent: "The sponsor list is not available yet. It is built with each daily update." }));
+    return;
+  }
+  $("sponsors-title").textContent = `Visa sponsors in ${state.sponsors.year}`;
+  $("sponsors-count").textContent = state.sponsors.companies.length;
+  $("sponsor-q").addEventListener("input", () => { state.sponsorShown = SPONSOR_PAGE; renderSponsorList(); });
+  $("hide-checked").addEventListener("change", renderSponsorList);
+  renderSponsorCategories();
+  renderSponsorList();
+}
+
 async function main() {
   setupThemeToggle();
   trackFilterBarHeight();
@@ -480,6 +633,7 @@ async function main() {
 
   render();
   document.querySelector(".stamp").classList.add("inked");
+  loadSponsors();
 }
 
 main();
