@@ -13,6 +13,7 @@ from pathlib import Path
 
 from big_tech import from_big_tech
 from jobright import from_jobright
+from workday import from_workday
 from net import GONE, get, iso_to_epoch, job, log
 from common import (
     INDUSTRIES, NAICS_INDUSTRY, PINNED_ROLES, REPOST_GAP, ROLE_ORDER, classify_role, first_listed, html_to_text,
@@ -282,7 +283,7 @@ def main():
     since = now - args.hours * 3600
     lookups = Lookups()
 
-    raw = from_simplify(since) + from_jobright(since) + from_boards(since) + from_big_tech(since)
+    raw = from_simplify(since) + from_jobright(since) + from_boards(since) + from_big_tech(since) + from_workday(since)
     jobs = []
     for j in raw:
         j["locations"] = us_locations(j["locations"])

@@ -115,7 +115,7 @@ def split_locations(text):
 
 _INTERN = re.compile(r"\b(interns?|internships?|co-?ops?|summer 202\d|students?)\b", re.I)
 _SENIOR = re.compile(
-    r"\b(senior|sr|staff|principal|lead|manager|director|head of|vp|vice president|"
+    r"\b(senior|sr|staff|principal|lead|leader|manager|director|head of|vp|vice president|"
     r"architect|distinguished|fellow|chief|expert)\b|\b(II|III|IV|[2-9])\s*(?:$|[-,(/])",
     re.I,
 )
@@ -125,7 +125,7 @@ _NON_CS = re.compile(
     r"sales|recruit\w*|nurse|accountant|accounting|marketing|legal|attorney|counsel|"
     r"clinical|pharmac\w*|designer|mechanic|construction|structural|hvac|field service|"
     r"customer success|customer support|account executive|paralegal|teacher|tutor|operator|generalist|"
-    r"rf|antenna|coordinator|planner)\b",
+    r"rf|antenna|coordinator|planner|retail|stores?)\b",
     re.I,
 )
 # First match wins, so the specific job types sit above the broad families:
