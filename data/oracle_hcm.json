@@ -1,0 +1,15 @@
+{
+  "Oracle": ["eeho.fa.us2.oraclecloud.com", "CX_45001"],
+  "Texas Instruments": ["edbz.fa.us2.oraclecloud.com", "CX"],
+  "JPMorgan Chase": ["jpmc.fa.oraclecloud.com", "CX_1001"],
+  "American Express": ["egug.fa.us2.oraclecloud.com", "CX_1"],
+  "Dell Technologies": ["iawmqy.fa.ocs.oraclecloud.com", "careers"],
+  "Ford Motor Company": ["efds.fa.em5.oraclecloud.com", "CX_1"],
+  "Cummins": ["fa-espx-saasfaprod1.fa.ocs.oraclecloud.com", "CX_1"],
+  "Honeywell": ["ibqbjb.fa.ocs.oraclecloud.com", "Honeywell"],
+  "Nokia": ["fa-evmr-saasfaprod1.fa.ocs.oraclecloud.com", "CX_1"],
+  "Fortinet": ["edel.fa.us2.oraclecloud.com", "CX_2001"],
+  "BNY": ["eofe.fa.us2.oraclecloud.com", "CX_1001"],
+  "Emerson Electric": ["hdjq.fa.us2.oraclecloud.com", "CX_1"],
+  "onsemi": ["hctz.fa.us2.oraclecloud.com", "CX_1001"]
+}

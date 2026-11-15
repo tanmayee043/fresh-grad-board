@@ -125,7 +125,8 @@ _NON_CS = re.compile(
     r"sales|recruit\w*|nurse|accountant|accounting|marketing|legal|attorney|counsel|"
     r"clinical|pharmac\w*|designer|mechanic|construction|structural|hvac|field service|"
     r"customer success|customer support|account executive|paralegal|teacher|tutor|operator|generalist|"
-    r"rf|antenna|coordinator|planner|retail|stores?)\b",
+    r"rf|antenna|coordinator|planner|retail|stores?|rn|nurs\w*|physicians?|therapists?|pharmacists?|"
+    r"medical assistant|professor|postdoc\w*|lecturer|faculty|content operations)\b",
     re.I,
 )
 # First match wins, so the specific job types sit above the broad families:
@@ -186,7 +187,7 @@ def classify_role(title):
     """Return the role family for a CS new-grad title, or None to drop it."""
     if _INTERN.search(title):
         return None
-    if _PRODUCT_ENTRY.search(title):
+    if _PRODUCT_ENTRY.search(title) and not re.search(r"\b(director|vp|head of|senior|sr|principal|lead)\b", title, re.I):
         return "Product"
     if _SENIOR.search(title) or _NON_CS.search(title):
         return None

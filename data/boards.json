@@ -109,7 +109,8 @@
     "ubiquiti": "Ubiquiti",
     "forwardnetworks": "Forward Networks",
     "bandwidth": "Bandwidth",
-    "vonage": "Vonage"
+    "vonage": "Vonage",
+    "sonyinteractiveentertainmentglobal": "Sony Interactive Entertainment"
   },
   "lever": {
     "palantir": "Palantir",
@@ -121,7 +122,8 @@
     "belvederetrading": "Belvedere Trading",
     "extremenetworks": "Extreme Networks",
     "megaport": "Megaport",
-    "twingate": "Twingate"
+    "twingate": "Twingate",
+    "brillio-2": "Brillio"
   },
   "ashby": {
     "plaid": "Plaid",

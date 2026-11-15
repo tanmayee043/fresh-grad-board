@@ -125,6 +125,8 @@ def _known_careers(listings):
             add(name, hosts[ats] + token, 100)
     for name, url in json.loads((DATA / "workday.json").read_text(encoding="utf-8")).items():
         add(name, url, 100)
+    for name, (host, site) in json.loads((DATA / "oracle_hcm.json").read_text(encoding="utf-8")).items():
+        add(name, f"https://{host}/hcmUI/CandidateExperience/en/sites/{site}", 100)
     for x in listings:
         add(x.get("company_name"), careers_from_url(x.get("url")))
     return {key: counts.most_common(1)[0][0] for key, counts in sites.items()}
@@ -249,8 +251,9 @@ def _known_names(listings):
     for entries in json.loads((DATA / "boards.json").read_text(encoding="utf-8")).values():
         for n in entries.values():
             names.setdefault(normalize_company(n), n)
-    for n in json.loads((DATA / "workday.json").read_text(encoding="utf-8")):
-        names.setdefault(normalize_company(n), n)
+    for f in ("workday.json", "oracle_hcm.json"):
+        for n in json.loads((DATA / f).read_text(encoding="utf-8")):
+            names.setdefault(normalize_company(n), n)
     for x in listings:
         n = x.get("company_name") or ""
         names.setdefault(normalize_company(n), n)

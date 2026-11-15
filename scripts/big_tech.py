@@ -62,19 +62,25 @@ def from_amazon(since):
     return out
 
 
-MICROSOFT_QUERIES = ["software engineer", "data engineer", "network engineer", "new grad"]
-MICROSOFT = "https://apply.careers.microsoft.com"
+PCSX_QUERIES = ["software engineer", "data engineer", "network engineer", "new grad"]
+# Careers sites that share one search service: company -> (site, email domain).
+PCSX_SITES = {
+    "Microsoft": ("https://apply.careers.microsoft.com", "microsoft.com"),
+    "Qualcomm": ("https://qualcomm.eightfold.ai", "qualcomm.com"),
+    "PayPal": ("https://paypal.eightfold.ai", "paypal.com"),
+}
 
 
-def from_microsoft(since):
-    """This site throttles quick requests, so this paces itself and stops for the day
+def _from_pcsx(company, since):
+    """These sites throttle quick requests, so this paces itself and stops for the day
     at the first rate-limit answer, keeping whatever it already has."""
+    site, domain = PCSX_SITES[company]
     found, out = {}, []
     try:
-        for q in MICROSOFT_QUERIES:
+        for q in PCSX_QUERIES:
             for page in range(5):
                 time.sleep(2)
-                url = (f"{MICROSOFT}/api/pcsx/search?domain=microsoft.com&location=United%20States"
+                url = (f"{site}/api/pcsx/search?domain={domain}&location=United%20States"
                        f"&sort_by=timestamp&start={page * 10}&query={urllib.parse.quote(q)}")
                 rows = ((get(url, raise_on_429=True) or {}).get("data") or {}).get("positions") or []
                 fresh = [x for x in rows if x.get("postedTs", 0) >= since]
@@ -85,11 +91,11 @@ def from_microsoft(since):
                     break
         for x in found.values():
             time.sleep(2)
-            d = (get(f"{MICROSOFT}/api/pcsx/position_details?position_id={x['id']}&domain=microsoft.com&hl=en",
+            d = (get(f"{site}/api/pcsx/position_details?position_id={x['id']}&domain={domain}&hl=en",
                      raise_on_429=True) or {}).get("data") or {}
-            out.append(job("Microsoft", x["name"], f"{MICROSOFT}/careers/job/{x['id']}",
+            out.append(job(company, x["name"], site + (x.get("positionUrl") or f"/careers/job/{x['id']}"),
                            x.get("standardizedLocations") or x.get("locations") or [], x["postedTs"],
-                           "Microsoft", _text(d.get("jobDescription"))))
+                           company, _text(d.get("jobDescription"))))
     except RateLimited:
         log("  - a careers site asked us to slow down; skipping it for today")
     return out
@@ -118,7 +124,10 @@ def from_netflix(since):
 
 # ---------------------------------------------------------------- all
 
-SOURCES = {"Amazon": from_amazon, "Microsoft": from_microsoft, "Netflix": from_netflix}
+SOURCES = {
+    "Amazon": from_amazon, "Netflix": from_netflix,
+    **{name: (lambda since, name=name: _from_pcsx(name, since)) for name in PCSX_SITES},
+}
 
 
 def from_big_tech(since):
